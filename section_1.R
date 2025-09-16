@@ -9,7 +9,6 @@ sensors <- readr::read_delim("sensors.csv",
                                        origin="1970-01-01 00:00:00"))
 #View(sensors)
 attach(sensors)
-
 na_sums <- colSums(is.na(sensors))
 print(na_sums) # lora_snr = 29 NAs 
 
