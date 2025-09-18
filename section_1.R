@@ -5,8 +5,13 @@ library(tidyverse)
 ### Data preparation----
 sensors <- readr::read_delim("sensors.csv", 
                              delim = ",", escape_double = FALSE, trim_ws = TRUE) |> 
-  dplyr::mutate(timestamp = as.POSIXct(timestamp, tz = "GMT",
-                                       origin="1970-01-01 00:00:00"))
+  dplyr::mutate(time= as.POSIXct(timestamp, tz = "GMT",
+                                       origin="1970-01-01 00:00:00")) |> 
+  relocate(time, .after = timestamp) 
+
+
+summary(sensors[,c()])
+
 #View(sensors)
 attach(sensors)
 na_sums <- colSums(is.na(sensors))
@@ -17,6 +22,8 @@ print(na_sums) # lora_snr = 29 NAs
 tinovi01_RSSI <- sensors |> 
   dplyr::filter(nodeid == "tinovi-01")
 summary(tinovi01_RSSI[,c(6:7)])
+summary(tinovi01_RSSI$temperature)
+
 
 tinovi02_RSSI <- sensors |> 
   dplyr::filter(nodeid == "tinovi-02")
