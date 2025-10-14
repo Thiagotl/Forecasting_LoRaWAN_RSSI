@@ -67,6 +67,15 @@ milesight02_RSSI <- combined_hourly_data |>
 summary(milesight02_RSSI[,c(3:6)])
 
 
+m_seas <- 24      
+
+# Dummy de inverno (Itália: Dez, Jan, Fev, Mar)
+add_winter_dummy <- function(df, time_col = "time_hour") {
+  tt <- with_tz(as.POSIXct(df[[time_col]]), tzone = "Europe/Rome")
+  df$winter_dummy <- as.integer(month(tt) %in% c(12, 1, 2))
+  df
+}
+
 
 
 
