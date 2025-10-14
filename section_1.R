@@ -269,6 +269,7 @@ print(COR)
 
 
 # =========================
+# Calculating the percentage difference with respect to ARIMA
 MAE_AUM  <- (MAE[,4]  - MAE[,1:3])  / MAE[,4]
 MAPE_AUM <- (MAPE[,4] - MAPE[,1:3]) / MAPE[,4]
 RMSE_AUM <- (RMSE[,4] - RMSE[,1:3]) / RMSE[,4]
@@ -284,7 +285,36 @@ make_result_by_sensor <- function(i) {
 result_list <- lapply(seq_along(sensor_names), function(i) make_result_by_sensor(i))
 names(result_list) <- sensor_names
 
+### ate aqui ta funcionando 
 
+
+# organizing the table
+result<- cbind(result01,rbind(
+  MAE_AUM[1,],M_AUM[1,],RMSE_AUM[1,],COR_AUM[1,]
+)*100
+)
+for(i in 2:8){
+  r<-cbind(get(paste0("result0",i)),rbind(
+    MAE_AUM[i,],M_AUM[i,],RMSE_AUM[i,],COR_AUM[i,]
+  )*100
+  )
+  result<-abind::abind(result,r,along = 1)
+}
+print(result,digits=3) # TABLE V
+
+# Counting the times the models were the best option
+count<-apply(cbind(apply(result01[1:3,], 1, rank)==1,
+                   COR=rank(result01[4,])==4),1,sum)
+for(i in 2:8){
+  r<-get(paste0("result0",i))
+  r<-apply(cbind(apply(r[1:3,], 1, rank)==1,
+                 COR=rank(r[4,])==4),1,sum)
+  count<-abind::abind(count,r,along = 2)
+}
+count<-abind::abind(count,apply(count,1,sum),along = 2)
+colnames(count)<-c(rownames(MAPE),"Overall")
+
+print(t(count)) # TABLE VI
 
 
 
