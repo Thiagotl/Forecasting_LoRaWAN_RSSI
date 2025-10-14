@@ -65,3 +65,10 @@ summary(milesight01_RSSI[,c(3:6)])
 milesight02_RSSI <- combined_hourly_data |> 
   dplyr::filter(nodeid == "milesight-02")
 summary(milesight02_RSSI[,c(3:6)])
+
+
+
+
+
+
+
