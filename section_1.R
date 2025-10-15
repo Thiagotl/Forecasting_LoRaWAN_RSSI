@@ -73,47 +73,47 @@ summary(milesight02_RSSI[,c(3:6)])
 
 ### Time series Figures ----
 
-RSSI_01 <- xts(tinovi01_RSSI$lora_rssi_mean, order.by=tinovi01_RSSI$time_hour)
-RSSI_02 <- xts(tinovi02_RSSI$lora_rssi_mean, order.by = tinovi02_RSSI$time_hour)
-RSSI_03 <- xts(tinovi03_RSSI$lora_rssi_mean, order.by = tinovi03_RSSI$time_hour)
-RSSI_04 <- xts(tinovi04_RSSI$lora_rssi_mean, order.by = tinovi04_RSSI$time_hour)
-RSSI_05 <- xts(tinovi05_RSSI$lora_rssi_mean, order.by = tinovi05_RSSI$time_hour)
-RSSI_06 <- xts(tinovi06_RSSI$lora_rssi_mean, order.by = tinovi06_RSSI$time_hour)
-RSSI_07 <- xts(milesight01_RSSI$lora_rssi_mean, order.by=milesight01_RSSI$time_hour)
-RSSI_08 <- xts(milesight02_RSSI$lora_rssi_mean, order.by=milesight02_RSSI$time_hour)
-
-{plot(RSSI_01,main="", yaxis.right=FALSE, grid.col = "white",
-      format.labels="%b-%Y", main.timespan = FALSE,
-      cex.axis=1.2,
-      lwd=0.5,ylim=c(-115,-42),ylab="",cex.lab=1.2)
-  par(cex.lab=1.2, cex.axis=1.2, cex.main=1.2, cex.sub=1.2) 
-  lines(RSSI_02,main="RSSI 02",col=2)
-  lines(RSSI_03,main="RSSI 02",col=3)
-  lines(RSSI_04,main="RSSI 02",col=4)
-  addLegend("topright",
-            legend.names=c("RSSI 01","RSSI 02","RSSI 03","RSSI 04"),
-            col=1:4, cex=1.2,
-            lwd=rep(.5,4),
-            ncol=2,
-            bg="white")
-}
-
-{
-  plot(RSSI_05,main="", yaxis.right=FALSE, grid.col = "white",
-       format.labels="%b-%Y", main.timespan = FALSE,
-       cex.axis=1.2,
-       lwd=0.5,ylim=c(-115,-42),ylab="",cex.lab=1.2)
-  par(cex.lab=1.2, cex.axis=1.2, cex.main=1.2, cex.sub=1.2) 
-  lines(RSSI_06,main="",col=2)
-  lines(RSSI_07,main="",col=3)
-  lines(RSSI_08,main="",col=4)
-  addLegend("topright",
-            legend.names=c("RSSI 05","RSSI 06","RSSI 07","RSSI 08"),
-            col=1:4, cex=1.2,
-            lwd=rep(.5,4),
-            ncol=2,
-            bg="white")
-}
+# RSSI_01 <- xts(tinovi01_RSSI$lora_rssi_mean, order.by=tinovi01_RSSI$time_hour)
+# RSSI_02 <- xts(tinovi02_RSSI$lora_rssi_mean, order.by = tinovi02_RSSI$time_hour)
+# RSSI_03 <- xts(tinovi03_RSSI$lora_rssi_mean, order.by = tinovi03_RSSI$time_hour)
+# RSSI_04 <- xts(tinovi04_RSSI$lora_rssi_mean, order.by = tinovi04_RSSI$time_hour)
+# RSSI_05 <- xts(tinovi05_RSSI$lora_rssi_mean, order.by = tinovi05_RSSI$time_hour)
+# RSSI_06 <- xts(tinovi06_RSSI$lora_rssi_mean, order.by = tinovi06_RSSI$time_hour)
+# RSSI_07 <- xts(milesight01_RSSI$lora_rssi_mean, order.by=milesight01_RSSI$time_hour)
+# RSSI_08 <- xts(milesight02_RSSI$lora_rssi_mean, order.by=milesight02_RSSI$time_hour)
+# 
+# {plot(RSSI_01,main="", yaxis.right=FALSE, grid.col = "white",
+#       format.labels="%b-%Y", main.timespan = FALSE,
+#       cex.axis=1.2,
+#       lwd=0.5,ylim=c(-115,-42),ylab="",cex.lab=1.2)
+#   par(cex.lab=1.2, cex.axis=1.2, cex.main=1.2, cex.sub=1.2) 
+#   lines(RSSI_02,main="RSSI 02",col=2)
+#   lines(RSSI_03,main="RSSI 02",col=3)
+#   lines(RSSI_04,main="RSSI 02",col=4)
+#   addLegend("topright",
+#             legend.names=c("RSSI 01","RSSI 02","RSSI 03","RSSI 04"),
+#             col=1:4, cex=1.2,
+#             lwd=rep(.5,4),
+#             ncol=2,
+#             bg="white")
+# }
+# 
+# {
+#   plot(RSSI_05,main="", yaxis.right=FALSE, grid.col = "white",
+#        format.labels="%b-%Y", main.timespan = FALSE,
+#        cex.axis=1.2,
+#        lwd=0.5,ylim=c(-115,-42),ylab="",cex.lab=1.2)
+#   par(cex.lab=1.2, cex.axis=1.2, cex.main=1.2, cex.sub=1.2) 
+#   lines(RSSI_06,main="",col=2)
+#   lines(RSSI_07,main="",col=3)
+#   lines(RSSI_08,main="",col=4)
+#   addLegend("topright",
+#             legend.names=c("RSSI 05","RSSI 06","RSSI 07","RSSI 08"),
+#             col=1:4, cex=1.2,
+#             lwd=rep(.5,4),
+#             ncol=2,
+#             bg="white")
+# }
 
 
 ### Train and Test sets -----
