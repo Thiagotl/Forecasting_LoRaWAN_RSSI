@@ -10,7 +10,7 @@ library(stats)
 sensors <- readr::read_delim("dataset_sensors.csv", 
                              delim = ",", escape_double = FALSE, trim_ws = TRUE) |> 
   dplyr::mutate(timestamp= as.POSIXct(timestamp, tz = "GMT",
-                                       origin="1970-01-01 00:00:00")) #|>relocate(time, .after = timestamp) 
+                                      origin="1970-01-01 00:00:00")) #|>relocate(time, .after = timestamp) 
 
 
 #View(sensors)
@@ -65,7 +65,7 @@ summary(milesight01_RSSI[,c(3:6)])
 milesight02_RSSI <- combined_hourly_data |> 
   dplyr::filter(nodeid == "milesight-02")
 summary(milesight02_RSSI[,c(3:6)])
- 
+
 
 ### Descriptive Analysis ----
 
@@ -129,9 +129,8 @@ split_train_test <- function(df, time_col = "time_hour", prop_train = 0.8){
   test <- df_ordered[(n_train+1):n_total, ]
   
   return(list(train = train, test = test))
-
+  
 }
-
 
 # Data Sets List
 sensors_list <- list(
@@ -149,19 +148,12 @@ sensors_split <- lapply(sensors_list, split_train_test)
 
 ### Auxiliary Functions ----
 
-rss_col  <- "lora_rssi_mean"                
-cov_cols <- c("temperature_mean","humidity_mean")  
+rss_col  <- "lora_rssi_mean"
+cov_cols <- c("temperature_mean","humidity_mean")
 time_col <- "time_hour"
 
 make_x <- function(df) {
   as.matrix(df[, cov_cols, drop = FALSE])
-}
-
-pvals_from_arima <- function(fit) {
-  se <- sqrt(diag(vcov(fit)))
-  cf <- coef(fit)
-  z  <- cf / se
-  2 * pnorm(abs(z), lower.tail = FALSE)
 }
 
 best_single_cov <- function(X, y) {
@@ -179,114 +171,93 @@ acc_metrics <- function(y, fitted_vec) {
 sensor_names <- names(sensors_list)                 
 n_sens <- length(sensor_names)
 
-order_arima <- matrix(NA, n_sens, 3, dimnames = list(sensor_names, c("p","d","q")))
-MAE  <- MAPE <- RMSE <- COR <- matrix(NA, n_sens, 4,
-                                      dimnames = list(sensor_names, c("ARIMA-COV","ARIMA-COV*","ARIMA-COV**","ARIMA"))
-)
-Xsig   <- matrix("", n_sens, 4, dimnames = list(sensor_names, c("COVs*","COVs**","","")))
-sinal  <- matrix(NA, n_sens, 2, dimnames = list(sensor_names, c("sign(COV*)","sign(COV**)")))
-values <- matrix(NA, n_sens, 2, dimnames = list(sensor_names, c("coef(COV*)","coef(COV**)")))
+order_arima <- matrix(NA, 8, 3)
+MAE <- MAPE <- RMSE <- COR <- matrix(NA, 8, 4)
+colnames(MAE) <- colnames(MAPE) <- colnames(RMSE) <- colnames(COR) <-
+  c("ARIMA-COV","ARIMA-COV*","ARIMA-COV**","ARIMA")
+rownames(MAPE) <- rownames(RMSE) <- rownames(order_arima) <- rownames(COR) <- sensor_names
+Xsig <- values <- sinal <- matrix("", 8, 4)
+rownames(Xsig) <- sensor_names
 
-for (i in seq_len(n_sens)) {
+for (i in seq_len(n_sens)){
+  
   nm <- sensor_names[i]
   tr <- sensors_split[[nm]]$train
   te <- sensors_split[[nm]]$test
   
-  # Aqui deu problema - verificar !!!!!!!
   tr <- tr[order(tr[[time_col]]), ]
   te <- te[order(te[[time_col]]), ]
   
   y_tr <- tr[[rss_col]]
   y_te <- te[[rss_col]]
-  X_tr <- make_x(tr)
-  X_te <- make_x(te)
+  X <- make_x(tr)
+  Xtest <- make_x(te)
+  
+  Xchoosed<-X[,1]
+  Xchoosedt<-Xtest[,1]
   
   # ARIMA-COV 
-  fit_auto <- auto.arima(y_tr, xreg = X_tr, allowdrift = FALSE)
-  order_arima[i, ] <- arimaorder(fit_auto)
+  a01<-assign(paste0("arimax0",i), auto.arima(y_tr,xreg = X,allowdrift=FALSE))
+  tcoef<-(coeftest(a01)<0.05)[(length(a01$coef)-dim(X)[2]+1):length(a01$coef),4]
+  Xnew<-X[,tcoef]
+  order_arima[i, ] <- arimaorder(a01)
+  Xsig[i,]<-c(c("T","RH")[tcoef],rep("",4-sum(tcoef)))
+  sinal[i,]<-(coef(a01)<0)[(length(a01$coef)-dim(X)[2]+1):length(a01$coef)]
+  values[i,]<-(coef(a01))[(length(a01$coef)-dim(X)[2]+1):length(a01$coef)]
   
-  # ARIMA-COV* (Significant at 5%)
-  pv  <- pvals_from_arima(fit_auto)
-  # nomes de coeficientes das covariáveis são os colnames(X_tr)
-  cov_names <- colnames(X_tr)
-  pv_cov    <- pv[names(pv) %in% cov_names]
-  keep_sig  <- names(pv_cov)[pv_cov < 0.05]
-  X_sig_tr  <- if (length(keep_sig)) as.matrix(X_tr[, keep_sig, drop = FALSE]) else NULL
-  X_sig_te  <- if (length(keep_sig)) as.matrix(X_te[, keep_sig, drop = FALSE]) else NULL
+  Xnewt<-Xtest[,tcoef]
+  a02<-Arima(y_tr,arimaorder(a01),xreg=Xnew)
+  a03<-Arima(y_tr,arimaorder(a01))
+  a04<-Arima(y_tr,order=arimaorder(a01),xreg=Xchoosed)
   
-  fit_sig <- if (!is.null(X_sig_tr)) Arima(y_tr, order = arimaorder(fit_auto), xreg = X_sig_tr) else Arima(y_tr, order = arimaorder(fit_auto))
   
-  # Get names/signs/values
-  Xsig[i, "COVs*"] <- if (length(keep_sig)) paste(keep_sig, collapse = ",") else "-"
-  if (!is.null(X_sig_tr)) {
-    cf <- coef(fit_sig)[keep_sig]
-    sinal[i, "sign(COV*)"]  <- paste(ifelse(cf < 0, "-", "+"), collapse = "")
-    values[i, "coef(COV*)"] <- paste(round(cf, 4), collapse = ",")
-  }
+  # forecasting
   
-  # ARIMA-COV** (uma covariável "melhor": maior |cor| com y) VVerificar se ta certo !!!
-  if (ncol(X_tr) > 0) {
-    j <- best_single_cov(X_tr, y_tr)
-    X_best_tr <- as.matrix(X_tr[, j, drop = FALSE])
-    X_best_te <- as.matrix(X_te[, j, drop = FALSE])
-    fit_best  <- Arima(y_tr, order = arimaorder(fit_auto), xreg = X_best_tr)
-    Xsig[i, "COVs**"] <- colnames(X_best_tr)
-    cf2 <- coef(fit_best)[colnames(X_best_tr)]
-    sinal[i, "sign(COV**)"]  <- ifelse(cf2 < 0, "-", "+")
-    values[i, "coef(COV**)"] <- round(cf2, 4)
-  } else {
-    fit_best <- Arima(y_tr, order = arimaorder(fit_auto))
-    Xsig[i, "COVs**"] <- "-"
-  }
+  RSSI_test <- y_te
+  new1<-assign(paste0("arima_cov0",i),
+               Arima(RSSI_test ,xreg = Xtest,model=a01)) #one-step-ahead
+  new2<-assign(paste0("arima_covstar",i),
+               Arima(RSSI_test ,xreg = Xnewt,model=a02)) #one-step-ahead
+  new3<-assign(paste0("arima_pred0",i),
+               Arima(RSSI_test ,model=a03)) #one-step-ahead
+  new4<-assign(paste0("arima_cov2star0",i),
+               Arima(RSSI_test ,xreg=Xchoosedt,model=a04)) #one-step-ahead
   
-  # ARIMA (Whithout Covariates)
-  fit_nox <- Arima(y_tr, order = arimaorder(fit_auto))
+  MAPE[i,]<-c(forecast::accuracy(RSSI_test,new1$fitted)[5],
+              forecast::accuracy(RSSI_test,new2$fitted)[5],
+              forecast::accuracy(RSSI_test,new4$fitted)[5],
+              forecast::accuracy(RSSI_test,new3$fitted)[5]
+  )
+  RMSE[i,]<-c(forecast::accuracy(RSSI_test,new1$fitted)[2],
+              forecast::accuracy(RSSI_test,new2$fitted)[2],
+              forecast::accuracy(RSSI_test,new4$fitted)[2],
+              forecast::accuracy(RSSI_test,new3$fitted)[2]
+  )
+  COR[i,]<-c(cor(RSSI_test,new1$fitted),
+             cor(RSSI_test,new2$fitted),
+             cor(RSSI_test,new4$fitted),
+             cor(RSSI_test,new3$fitted)
+  )
+  MAE[i,]<-c(forecast::accuracy(RSSI_test,new1$fitted)[3],
+             forecast::accuracy(RSSI_test,new2$fitted)[3],
+             forecast::accuracy(RSSI_test,new4$fitted)[3],
+             forecast::accuracy(RSSI_test,new3$fitted)[3]
+  )
   
-  # ---- "one-step-ahead" ---- 
-  pred_cov  <- Arima(y_te, xreg = X_te,      model = fit_auto)$fitted
-  pred_sig  <- if (!is.null(X_sig_te)) Arima(y_te, xreg = X_sig_te, model = fit_sig)$fitted else Arima(y_te, model = fit_sig)$fitted
-  pred_best <- if (exists("X_best_te")) Arima(y_te, xreg = X_best_te, model = fit_best)$fitted else Arima(y_te, model = fit_best)$fitted
-  pred_nox  <- Arima(y_te,                    model = fit_nox)$fitted
   
-  # ---- Metrics ----
-  m1 <- acc_metrics(y_te, pred_cov)
-  m2 <- acc_metrics(y_te, pred_sig)
-  m3 <- acc_metrics(y_te, pred_best)
-  m4 <- acc_metrics(y_te, pred_nox)
+  assign(paste0("result0",i),
+         t(data.frame(MAE=MAE[i,],MAPE=MAPE[i,],RMSE=RMSE[i,],COR=COR[i,]))
+  )
   
-  MAE [i, ] <- c(m1["MAE"],  m2["MAE"],  m3["MAE"],  m4["MAE"])
-  MAPE[i, ] <- c(m1["MAPE"], m2["MAPE"], m3["MAPE"], m4["MAPE"])
-  RMSE[i, ] <- c(m1["RMSE"], m2["RMSE"], m3["RMSE"], m4["RMSE"])
-  COR [i, ] <- c(m1["COR"],  m2["COR"],  m3["COR"],  m4["COR"])
 }
 
-print(cbind(order_arima, Xsig))
-print(MAE)
-print(MAPE)
-print(RMSE)
-print(COR)
-#############
+print(cbind(order_arima,Xsig))
 
-
-# =========================
 # Calculating the percentage difference with respect to ARIMA
-MAE_AUM  <- (MAE[,4]  - MAE[,1:3])  / MAE[,4]
-MAPE_AUM <- (MAPE[,4] - MAPE[,1:3]) / MAPE[,4]
-RMSE_AUM <- (RMSE[,4] - RMSE[,1:3]) / RMSE[,4]
-COR_AUM  <- (COR[,1:3] - COR[,4])   / COR[,4]
-
-
-make_result_by_sensor <- function(i) {
-  base <- rbind(MAE[i,], MAPE[i,], RMSE[i,], COR[i,])
-  diffs <- rbind(MAE_AUM[i,], MAPE_AUM[i,], RMSE_AUM[i,], COR_AUM[i,]) * 100
-  cbind(base, diffs)
-}
-
-result_list <- lapply(seq_along(sensor_names), function(i) make_result_by_sensor(i))
-names(result_list) <- sensor_names
-
-### ate aqui ta funcionando 
-
+MAE_AUM<-(MAE[,4]-MAE[,1:3])/MAE[,4]
+M_AUM<-(MAPE[,4]-MAPE[,1:3])/MAPE[,4]
+RMSE_AUM<-(RMSE[,4]-RMSE[,1:3])/RMSE[,4]
+COR_AUM<-(COR[,1:3]-COR[,4])/COR[,4]
 
 # organizing the table
 result<- cbind(result01,rbind(
@@ -302,6 +273,7 @@ for(i in 2:8){
 }
 print(result,digits=3) # TABLE V
 
+
 # Counting the times the models were the best option
 count<-apply(cbind(apply(result01[1:3,], 1, rank)==1,
                    COR=rank(result01[4,])==4),1,sum)
@@ -316,42 +288,4 @@ colnames(count)<-c(rownames(MAPE),"Overall")
 
 print(t(count)) # TABLE VI
 
-
-
-
-
-# best_counts <- matrix(0L, nrow = 4, ncol = 4,
-#                       dimnames = list(c("MAE","MAPE","RMSE","COR"),
-#                                       colnames(MAE)))  
-# 
-# for (i in seq_along(sensor_names)) {
-#   r <- rbind(MAE[i,], MAPE[i,], RMSE[i,], COR[i,])
-#   # MAE/MAPE/RMSE
-#   for (row in 1:3) {
-#     j <- which.min(r[row, ])
-#     best_counts[row, j] <- best_counts[row, j] + 1
-#   }
-#   # COR 
-#   j <- which.max(r[4, ])
-#   best_counts[4, j] <- best_counts[4, j] + 1
-# }
-# 
-# best_counts <- cbind(best_counts) #, Overall = rowSums(best_counts)
-# print(best_counts)
-# 
-# 
-# 
-# 
-# 
-# MAE_all <- data.frame(
-#   values = c((MAE[,3]-MAE[,1])/MAE[,3],
-#              (MAPE[,3]-MAPE[,1])/MAPE[,3],
-#              (RMSE[,3]-RMSE[,1])/RMSE[,3],
-#              (COR[,1]-COR[,3])/COR[,3]) * 100,
-#   measure = rep(c("MAE","MAPE","RMSE","COR"), each = length(sensor_names)),
-#   model   = rep(sensor_names, times = 4)
-# ) |>
-#   mutate(plot_text = ifelse(values < 0, 0.2, values + 0.2))
-# 
-# 
 

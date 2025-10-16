@@ -6,13 +6,14 @@ library(purrr)
 library(forecast)
 library(xts)
 library(abind)
+library(tidyverse)
 
 
 ### Data preparation----
 sensors <- readr::read_delim("dataset_sensors.csv", 
                              delim = ",", escape_double = FALSE, trim_ws = TRUE) |> 
   dplyr::mutate(timestamp= as.POSIXct(timestamp, tz = "GMT",
-                                      origin="1970-01-01 00:00:00")) #|>relocate(time, .after = timestamp) 
+                                      origin="1970-01-01 00:00:00")) 
 
 
 #View(sensors)
@@ -238,15 +239,15 @@ rownames(Xsig) <- sensor_tags
 for (i in seq_along(sensor_tags)) {
   tag <- sensor_tags[i]
   
-  # --- Série alvo (treino/teste) --------------------------------------------
+  # Train and test sets
   y_tr <- ensure_cols(train_wide, col_y(tag))[[1]]
   y_te <- ensure_cols(test_wide,  col_y(tag))[[1]]
   
-  # --- Covariáveis por sensor (AGORA: temp, hum) ----------------------------
+  # Covariates
   X_tr_raw <- ensure_cols(train_wide, col_xs(tag))
   X_te_raw <- ensure_cols(test_wide,  col_xs(tag))
   
-  # remove colunas completamente NA (sem excluir linhas)
+  # Remove col with NA's
   keep_tr <- colSums(!is.na(X_tr_raw)) > 0
   keep_te <- colSums(!is.na(X_te_raw)) > 0
   keep    <- keep_tr | keep_te
