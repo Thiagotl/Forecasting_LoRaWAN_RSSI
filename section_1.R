@@ -156,17 +156,6 @@ make_x <- function(df) {
   as.matrix(df[, cov_cols, drop = FALSE])
 }
 
-best_single_cov <- function(X, y) {
-  if (ncol(X) == 0) return(NULL)
-  cs <- apply(X, 2, function(x) abs(cor(x, y, use = "complete.obs")))
-  which.max(cs)
-}
-
-acc_metrics <- function(y, fitted_vec) {
-  a <- forecast::accuracy(forecast::na.interp(y), forecast::na.interp(fitted_vec))
-  c(MAE = a[3], MAPE = a[5], RMSE = a[2], COR = suppressWarnings(cor(y, fitted_vec, use = "complete.obs")))
-}
-
 
 sensor_names <- names(sensors_list)                 
 n_sens <- length(sensor_names)
