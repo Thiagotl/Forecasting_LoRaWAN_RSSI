@@ -163,7 +163,7 @@ n_sens <- length(sensor_names)
 order_arima <- matrix(NA, 8, 3)
 MAE <- MAPE <- RMSE <- COR <- matrix(NA, 8, 4)
 colnames(MAE) <- colnames(MAPE) <- colnames(RMSE) <- colnames(COR) <-
-  c("ARIMA-COV","ARIMA-COV*","ARIMA-COV**","ARIMA")
+  c("ARIMA-TEMP+HUM","ARIMA-TEMP","ARIMA-HUM","ARIMA")
 rownames(MAPE) <- rownames(RMSE) <- rownames(order_arima) <- rownames(COR) <- sensor_names
 Xsig <- values <- sinal <- matrix("", 8, 4)
 rownames(Xsig) <- sensor_names
@@ -182,35 +182,48 @@ for (i in seq_len(n_sens)){
   X <- make_x(tr)
   Xtest <- make_x(te)
   
-  Xchoosed<-X[,1]
-  Xchoosedt<-Xtest[,1]
+  #Xchoosed<-X[,1]
+  #Xchoosedt<-Xtest[,1]
   
-  # ARIMA-COV 
+  # ARIMA-COMPLETO
   a01<-assign(paste0("arimax0",i), auto.arima(y_tr,xreg = X,allowdrift=FALSE))
   tcoef<-(coeftest(a01)<0.05)[(length(a01$coef)-dim(X)[2]+1):length(a01$coef),4]
-  Xnew<-X[,tcoef]
+  #Xnew<-X[,tcoef]
   order_arima[i, ] <- arimaorder(a01)
   Xsig[i,]<-c(c("T","RH")[tcoef],rep("",4-sum(tcoef)))
   sinal[i,]<-(coef(a01)<0)[(length(a01$coef)-dim(X)[2]+1):length(a01$coef)]
   values[i,]<-(coef(a01))[(length(a01$coef)-dim(X)[2]+1):length(a01$coef)]
   
-  Xnewt<-Xtest[,tcoef]
-  a02<-Arima(y_tr,arimaorder(a01),xreg=Xnew)
-  a03<-Arima(y_tr,arimaorder(a01))
-  a04<-Arima(y_tr,order=arimaorder(a01),xreg=Xchoosed)
+  #Xnewt<-Xtest[,tcoef]
+  
+  Xnew <-X[, 1] # Temperature
+  a02<-Arima(y_tr,arimaorder(a01),xreg=Xnew) # ARIMA Temperature
+  
+  a03<-Arima(y_tr,arimaorder(a01)) # ARIMA without covariates
+  
+  Xnew2 <-X[, 2] # Humidity
+  a04<-Arima(y_tr,order=arimaorder(a01),xreg=Xnew2) # ARIMA Humidity
   
   
   # forecasting
   
   RSSI_test <- y_te
+  
+  # COMPLETO 
   new1<-assign(paste0("arima_cov0",i),
                Arima(RSSI_test ,xreg = Xtest,model=a01)) #one-step-ahead
+  
+  Xnewt <- Xtest[, 1] # Temperature
   new2<-assign(paste0("arima_covstar",i),
                Arima(RSSI_test ,xreg = Xnewt,model=a02)) #one-step-ahead
+  
+  # Without covariates
   new3<-assign(paste0("arima_pred0",i),
                Arima(RSSI_test ,model=a03)) #one-step-ahead
+  # Humidity
+  Xnewt2 <- Xtest[, 2]
   new4<-assign(paste0("arima_cov2star0",i),
-               Arima(RSSI_test ,xreg=Xchoosedt,model=a04)) #one-step-ahead
+               Arima(RSSI_test ,xreg=Xnewt2,model=a04)) #one-step-ahead
   
   MAPE[i,]<-c(forecast::accuracy(RSSI_test,new1$fitted)[5],
               forecast::accuracy(RSSI_test,new2$fitted)[5],
@@ -260,7 +273,7 @@ for(i in 2:8){
   )
   result<-abind::abind(result,r,along = 1)
 }
-print(result,digits=3) # TABLE V
+print(result,digits=7) # TABLE V
 
 
 # Counting the times the models were the best option
