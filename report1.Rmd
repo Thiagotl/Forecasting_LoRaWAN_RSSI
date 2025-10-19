@@ -1,0 +1,499 @@
+---
+title: "Report - Forcasting signal strength in LoRaWan networks"
+author: "Renata Rojas Guerra - Thiago Tavares Lopes"
+#date: "`r format(Sys.time(), '%d %B %Y')`"
+header-includes:
+   - \usepackage{bm}
+   - \usepackage{float}
+   - \usepackage{multirow}
+   - \usepackage{booktabs}
+   - \usepackage{siunitx}
+geometry: left=2.5cm, right=2.5cm, top=2cm, bottom=2cm
+output:
+  bookdown::pdf_document2:
+    fig.align: 'center'
+editor_options:
+  chunk_output_type: console
+  markdown: 
+    wrap: sentence
+---
+
+```{r, include=FALSE}
+
+library(tidyverse)
+library(xts)
+library(lmtest)
+library(forecast)
+library(stats)
+library(kableExtra)
+library(purrr)
+
+```
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(fig.pos = "H")
+```
+
+
+
+```{r, include=FALSE}
+### Data preparation----
+sensors <- readr::read_delim("dataset_sensors.csv", 
+                             delim = ",", escape_double = FALSE, trim_ws = TRUE) |> 
+  dplyr::mutate(timestamp= as.POSIXct(timestamp, tz = "GMT",
+                                      origin="1970-01-01 00:00:00")) #|>relocate(time, .after = timestamp) 
+
+
+#View(sensors)
+attach(sensors)
+na_sums <- colSums(is.na(sensors))
+print(na_sums) # lora_snr = 33 NAs 
+
+combined_hourly_data <- sensors |> 
+  group_by(
+    nodeid,
+    time_hour = floor_date(timestamp, "hour")
+  ) |> 
+  summarise(
+    temperature_mean = mean(temperature, na.rm = TRUE),
+    humidity_mean = mean(humidity, na.rm = TRUE),
+    lora_rssi_mean = mean(lora_rssi, na.rm = TRUE),
+    lora_snr_mean = mean(lora_snr, na.rm = TRUE),
+    .groups = 'drop'
+  )
+
+```
+
+
+
+# Introduction
+
+XXXXXXXXXX
+
+
+
+# Data description
+
+
+```{r, include=FALSE}
+
+# Select the RSSI's values
+
+tinovi01_RSSI <- combined_hourly_data |> 
+  dplyr::filter(nodeid == "tinovi-01")
+
+tinovi02_RSSI <- combined_hourly_data |> 
+  dplyr::filter(nodeid == "tinovi-02")
+
+tinovi03_RSSI <- combined_hourly_data |> 
+  dplyr::filter(nodeid == "tinovi-03")
+
+tinovi04_RSSI <- combined_hourly_data |> 
+  dplyr::filter(nodeid == "tinovi-04")
+
+tinovi05_RSSI <- combined_hourly_data |> 
+  dplyr::filter(nodeid == "tinovi-05")
+
+tinovi06_RSSI <- combined_hourly_data |> 
+  dplyr::filter(nodeid == "tinovi-06")
+
+milesight01_RSSI <- combined_hourly_data |> 
+  dplyr::filter(nodeid == "milesight-01")
+
+milesight02_RSSI <- combined_hourly_data |> 
+  dplyr::filter(nodeid == "milesight-02")
+
+
+```
+
+
+
+
+```{r, include=FALSE}
+
+dfs <- list(
+  "TINOVI-01"    = tinovi01_RSSI,
+  "TINOVI-02"    = tinovi02_RSSI,
+  "TINOVI-03"    = tinovi03_RSSI,
+  "TINOVI-04"    = tinovi04_RSSI,
+  "TINOVI-05"    = tinovi05_RSSI,
+  "TINOVI-06"    = tinovi06_RSSI,
+  "MILESIGHT-01" = milesight01_RSSI,
+  "MILESIGHT-02" = milesight02_RSSI
+)
+
+mk_summary_long <- function(df, sensor_label) {
+  df |>
+    select(3:6) |>  # colunas 3:6
+    summarise(
+      across(
+        everything(),
+        list(
+          Min    = ~min(.x, na.rm = TRUE),
+          Q1     = ~quantile(.x, 0.25, na.rm = TRUE),
+          Median = ~median(.x, na.rm = TRUE),
+          Mean   = ~mean(.x, na.rm = TRUE),
+          Q3     = ~quantile(.x, 0.75, na.rm = TRUE),
+          Max    = ~max(.x, na.rm = TRUE)
+        ),
+        .names = "{.col}__{.fn}"
+      )
+    ) |>
+    pivot_longer(
+      everything(),
+      names_to = c("variavel", "estatistica"),
+      names_sep = "__",
+      values_to = "valor"
+    ) |>
+    mutate(sensor = sensor_label, .before = 1)
+}
+
+render_group_table_wide <- function(dfs_named, sensors_subset, caption_text) {
+  ord_est <- c("Min", "Q1", "Median", "Mean", "Q3", "Max")
+  long <- imap_dfr(dfs_named[sensors_subset], mk_summary_long) |>
+    mutate(
+      estatistica = factor(estatistica, levels = ord_est),
+      valor = as.numeric(valor)
+    )
+
+  wide <- long |>
+    arrange(sensor, variavel, estatistica) |>
+    pivot_wider(
+      id_cols   = c(sensor, variavel),
+      names_from = estatistica,
+      values_from = valor
+    ) |>
+    mutate(across(where(is.numeric), ~round(.x, 3))) |>
+    rename(Sensor = sensor, Variable = variavel)
+
+  wide |>
+    kbl(
+      align = c("l","l", rep("r", 6)),
+      caption = caption_text
+    ) |>
+    kable_paper(full_width = FALSE) |>
+    kable_styling(latex_options = "HOLD_position") |> 
+    collapse_rows(columns = 1, valign = "top")
+}
+
+# ---- defina os dois grupos (4 + 4) ----
+sensores <- names(dfs)
+grupo_A <- sensores[1:4]  # TINOVI-01..04
+grupo_B <- sensores[5:8]  # TINOVI-05..06 + MILESIGHT-01..02
+
+```
+
+
+
+```{r, echo=FALSE}
+
+# ---- Tabela 1 (primeira metade) ----
+render_group_table_wide(dfs, grupo_A, "Resume 1 — Part 1")
+
+# (opcional no R Markdown PDF) cat('\\newpage')
+
+# ---- Tabela 2 (segunda metade) ----
+render_group_table_wide(dfs, grupo_B, "Resume 2 — Part 2 ")
+
+```
+
+
+
+
+# Results 
+
+
+
+
+```{r, echo=FALSE, fig.align='center', fig.pos='H'}
+RSSI_01 <- xts(tinovi01_RSSI$lora_rssi_mean, order.by=tinovi01_RSSI$time_hour)
+RSSI_02 <- xts(tinovi02_RSSI$lora_rssi_mean, order.by = tinovi02_RSSI$time_hour)
+RSSI_03 <- xts(tinovi03_RSSI$lora_rssi_mean, order.by = tinovi03_RSSI$time_hour)
+RSSI_04 <- xts(tinovi04_RSSI$lora_rssi_mean, order.by = tinovi04_RSSI$time_hour)
+RSSI_05 <- xts(tinovi05_RSSI$lora_rssi_mean, order.by = tinovi05_RSSI$time_hour)
+RSSI_06 <- xts(tinovi06_RSSI$lora_rssi_mean, order.by = tinovi06_RSSI$time_hour)
+RSSI_07 <- xts(milesight01_RSSI$lora_rssi_mean, order.by=milesight01_RSSI$time_hour)
+RSSI_08 <- xts(milesight02_RSSI$lora_rssi_mean, order.by=milesight02_RSSI$time_hour)
+
+{plot(RSSI_01,main="", yaxis.right=FALSE, grid.col = "white",
+      format.labels="%b-%Y", main.timespan = FALSE,
+      cex.axis=1.2,
+      lwd=0.5,ylim=c(-115,-42),ylab="",cex.lab=1.2)
+  par(cex.lab=1.2, cex.axis=1.2, cex.main=1.2, cex.sub=1.2)
+  lines(RSSI_02,main="RSSI 02",col=2)
+  lines(RSSI_03,main="RSSI 02",col=3)
+  lines(RSSI_04,main="RSSI 02",col=4)
+  addLegend("topright",
+            legend.names=c("RSSI 01","RSSI 02","RSSI 03","RSSI 04"),
+            col=1:4, cex=1.2,
+            lwd=rep(.5,4),
+            ncol=2,
+            bg="white")
+}
+
+```
+
+
+```{r, echo=FALSE, fig.align='center', fig.pos='H'}
+
+{
+  plot(RSSI_05,main="", yaxis.right=FALSE, grid.col = "white",
+       format.labels="%b-%Y", main.timespan = FALSE,
+       cex.axis=1.2,
+       lwd=0.5,ylim=c(-115,-42),ylab="",cex.lab=1.2)
+  par(cex.lab=1.2, cex.axis=1.2, cex.main=1.2, cex.sub=1.2)
+  lines(RSSI_06,main="",col=2)
+  lines(RSSI_07,main="",col=3)
+  lines(RSSI_08,main="",col=4)
+  addLegend("topright",
+            legend.names=c("RSSI 05","RSSI 06","RSSI 07","RSSI 08"),
+            col=1:4, cex=1.2,
+            lwd=rep(.5,4),
+            ncol=2,
+            bg="white")
+}
+
+
+```
+
+
+\newpage
+
+```{r, include=FALSE}
+### Train and Test sets -----
+
+split_train_test <- function(df, time_col = "time_hour", prop_train = 0.8){
+  
+  df_ordered <- df[order(df[[time_col]]),]
+  
+  n_total <- nrow(df_ordered)
+  n_train <- floor(prop_train * n_total)
+  
+  train <- df_ordered[1:n_train, ]
+  test <- df_ordered[(n_train+1):n_total, ]
+  
+  return(list(train = train, test = test))
+  
+}
+
+# Data Sets List
+sensors_list <- list(
+  RSSI_01 = tinovi01_RSSI,
+  RSSI_02 = tinovi02_RSSI,
+  RSSI_03 = tinovi03_RSSI,
+  RSSI_04 = tinovi04_RSSI,
+  RSSI_05 = tinovi05_RSSI,
+  RSSI_06 = tinovi06_RSSI,
+  RSSI_07 = milesight01_RSSI,
+  RSSI_08 = milesight02_RSSI
+)
+
+sensors_split <- lapply(sensors_list, split_train_test)
+
+### Auxiliary Functions ----
+
+rss_col  <- "lora_rssi_mean"
+cov_cols <- c("temperature_mean","humidity_mean")
+time_col <- "time_hour"
+
+make_x <- function(df) {
+  as.matrix(df[, cov_cols, drop = FALSE])
+}
+
+
+sensor_names <- names(sensors_list)                 
+n_sens <- length(sensor_names)
+
+order_arima <- matrix(NA, 8, 3)
+MAE <- MAPE <- RMSE <- COR <- matrix(NA, 8, 4)
+colnames(MAE) <- colnames(MAPE) <- colnames(RMSE) <- colnames(COR) <-
+  c("ARIMA-TEMP+HUM","ARIMA-TEMP","ARIMA-HUM","ARIMA")
+rownames(MAPE) <- rownames(RMSE) <- rownames(order_arima) <- rownames(COR) <- sensor_names
+Xsig <- values <- sinal <- matrix("", 8, 4)
+rownames(Xsig) <- sensor_names
+
+```
+
+
+
+```{r, include=FALSE}
+
+for (i in seq_len(n_sens)){
+  
+  nm <- sensor_names[i]
+  tr <- sensors_split[[nm]]$train
+  te <- sensors_split[[nm]]$test
+  
+  tr <- tr[order(tr[[time_col]]), ]
+  te <- te[order(te[[time_col]]), ]
+  
+  y_tr <- tr[[rss_col]]
+  y_te <- te[[rss_col]]
+  X <- make_x(tr)
+  Xtest <- make_x(te)
+  
+  #Xchoosed<-X[,1]
+  #Xchoosedt<-Xtest[,1]
+  
+  # ARIMA-COMPLETO
+  a01<-assign(paste0("arimax0",i), auto.arima(y_tr,xreg = X,allowdrift=FALSE))
+  tcoef<-(coeftest(a01)<0.05)[(length(a01$coef)-dim(X)[2]+1):length(a01$coef),4]
+  #Xnew<-X[,tcoef]
+  order_arima[i, ] <- arimaorder(a01)
+  Xsig[i,]<-c(c("T","RH")[tcoef],rep("",4-sum(tcoef)))
+  sinal[i,]<-(coef(a01)<0)[(length(a01$coef)-dim(X)[2]+1):length(a01$coef)]
+  values[i,]<-(coef(a01))[(length(a01$coef)-dim(X)[2]+1):length(a01$coef)]
+  
+  #Xnewt<-Xtest[,tcoef]
+  
+  Xnew <-X[, 1] # Temperature
+  a02<-Arima(y_tr,arimaorder(a01),xreg=Xnew) # ARIMA Temperature
+  
+  a03<-Arima(y_tr,arimaorder(a01)) # ARIMA without covariates
+  
+  Xnew2 <-X[, 2] # Humidity
+  a04<-Arima(y_tr,order=arimaorder(a01),xreg=Xnew2) # ARIMA Humidity
+  
+  
+  # forecasting
+  
+  RSSI_test <- y_te
+  
+  # COMPLETO 
+  new1<-assign(paste0("arima_cov0",i),
+               Arima(RSSI_test ,xreg = Xtest,model=a01)) #one-step-ahead
+  
+  Xnewt <- Xtest[, 1] # Temperature
+  new2<-assign(paste0("arima_covstar",i),
+               Arima(RSSI_test ,xreg = Xnewt,model=a02)) #one-step-ahead
+  
+  # Without covariates
+  new3<-assign(paste0("arima_pred0",i),
+               Arima(RSSI_test ,model=a03)) #one-step-ahead
+  # Humidity
+  Xnewt2 <- Xtest[, 2]
+  new4<-assign(paste0("arima_cov2star0",i),
+               Arima(RSSI_test ,xreg=Xnewt2,model=a04)) #one-step-ahead
+  
+  MAPE[i,]<-c(forecast::accuracy(RSSI_test,new1$fitted)[5],
+              forecast::accuracy(RSSI_test,new2$fitted)[5],
+              forecast::accuracy(RSSI_test,new4$fitted)[5],
+              forecast::accuracy(RSSI_test,new3$fitted)[5]
+  )
+  RMSE[i,]<-c(forecast::accuracy(RSSI_test,new1$fitted)[2],
+              forecast::accuracy(RSSI_test,new2$fitted)[2],
+              forecast::accuracy(RSSI_test,new4$fitted)[2],
+              forecast::accuracy(RSSI_test,new3$fitted)[2]
+  )
+  COR[i,]<-c(cor(RSSI_test,new1$fitted),
+             cor(RSSI_test,new2$fitted),
+             cor(RSSI_test,new4$fitted),
+             cor(RSSI_test,new3$fitted)
+  )
+  MAE[i,]<-c(forecast::accuracy(RSSI_test,new1$fitted)[3],
+             forecast::accuracy(RSSI_test,new2$fitted)[3],
+             forecast::accuracy(RSSI_test,new4$fitted)[3],
+             forecast::accuracy(RSSI_test,new3$fitted)[3]
+  )
+  
+  
+  assign(paste0("result0",i),
+         t(data.frame(MAE=MAE[i,],MAPE=MAPE[i,],RMSE=RMSE[i,],COR=COR[i,]))
+  )
+  
+}
+
+```
+
+
+```{r, echo=FALSE}
+
+m <- cbind(order_arima, Xsig)
+
+df <- as.data.frame(m, stringsAsFactors = FALSE)
+df$sensor <- rownames(m)
+rownames(df) <- NULL
+names(df) <- c("p","d","q","x1","x2","x3","x4","sensor")
+
+# colunas de ordem como inteiros
+df[ c("p","d","q") ] <- lapply(df[ c("p","d","q") ], as.integer)
+
+# coluna-lista com covariáveis não vazias
+df$covariates <- apply(df[, c("x1","x2","x3","x4")], 1, function(z) z[z != ""])
+
+df <- df[, c("sensor","p","d","q","x1","x2","x3","x4")]
+
+kbl(df, caption = "", booktabs = T) |> 
+  kable_styling(latex_options = c("striped", "hold_position"))
+
+```
+
+
+```{r, include=FALSE}
+
+# Calculating the percentage difference with respect to ARIMA
+MAE_AUM<-(MAE[,4]-MAE[,1:3])/MAE[,4]
+M_AUM<-(MAPE[,4]-MAPE[,1:3])/MAPE[,4]
+RMSE_AUM<-(RMSE[,4]-RMSE[,1:3])/RMSE[,4]
+COR_AUM<-(COR[,1:3]-COR[,4])/COR[,4]
+
+# organizing the table
+result<- cbind(result01,rbind(
+  MAE_AUM[1,],M_AUM[1,],RMSE_AUM[1,],COR_AUM[1,]
+)*100
+)
+for(i in 2:8){
+  r<-cbind(get(paste0("result0",i)),rbind(
+    MAE_AUM[i,],M_AUM[i,],RMSE_AUM[i,],COR_AUM[i,]
+  )*100
+  )
+  result<-abind::abind(result,r,along = 1)
+}
+
+sensor_names <- names(sensors_list)
+
+metric_levels <- c("MAE", "MAPE", "RMSE", "COR")
+
+res_df <- as.data.frame(result, check.names = FALSE)
+
+# Adiciona colunas de identificação
+res_df$Metric <- rep(metric_levels, times = length(sensor_names))
+res_df$Sensor <- rep(sensor_names, each = length(metric_levels))
+
+# Reordena (Sensor, Metric, colunas dos modelos)
+res_df <- res_df %>%
+  relocate(Sensor, Metric)
+
+abs_idx <- 3:6
+pct_idx <- 7:9
+
+# Renomeia de forma explícita para evitar ambiguidade
+abs_names <- c("ARIMA-TEMP+HUM", "ARIMA-TEMP", "ARIMA-HUM", "ARIMA")
+pct_names <- c("ARIMA-TEMP+HUM", "ARIMA-TEMP", "ARIMA-HUM")
+
+
+# Table - metrics 1 
+df_abs <- res_df %>%
+  select(Sensor, Metric, all_of(abs_idx))
+names(df_abs)[-(1:2)] <- abs_names
+
+# Table - metrics 2
+df_pct <- res_df %>%
+  select(Sensor, Metric, all_of(pct_idx))
+names(df_pct)[-(1:2)] <- pct_names
+
+
+```
+
+
+```{r echo=FALSE}
+
+kbl(df_abs, caption = "", booktabs = T, row.names = FALSE) |> 
+  kable_styling(latex_options = c("striped", "hold_position"))
+```
+
+```{r, echo=FALSE}
+kbl(df_pct, caption = "", booktabs = T, row.names = FALSE) |> 
+  kable_styling(latex_options = c("striped", "hold_position"))
+```
+
