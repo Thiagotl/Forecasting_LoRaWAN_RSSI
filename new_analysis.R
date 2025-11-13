@@ -65,7 +65,7 @@ tinovi02_RSSI <- combined_hourly_sensors |>
 tinovi03_RSSI <- combined_hourly_sensors |> 
   dplyr::filter(nodeid == "tinovi-03")
 
-tinovi04_RSSI <- combined_hourly_sensors |> 
+tinovi04_RSSI <- combined_hourly_sensors |> #8634
   dplyr::filter(nodeid == "tinovi-04")
 
 tinovi05_RSSI <- combined_hourly_sensors |> 
@@ -91,6 +91,47 @@ tinovi05_RSSI <- inner_join(tinovi05_RSSI, combined_hourly_env, by = "rdtimestam
 tinovi06_RSSI <- inner_join(tinovi06_RSSI, combined_hourly_env, by = "rdtimestamp") 
 milesight01_RSSI <- inner_join(milesight01_RSSI, combined_hourly_env, by = "rdtimestamp")
 milesight02_RSSI <- inner_join(milesight02_RSSI, combined_hourly_env, by = "rdtimestamp")
+
+
+
+## Pearson's correlation ----
+correlation<-data[,c(2:12)]
+
+psych::corr.test(tinovi01_RSSI[, c(3:8)])
+
+
+### Train and Test sets -----
+
+split_train_test <- function(df, time_col = "rdtimestamp", prop_train = 0.8){
+  
+  df_ordered <- df[order(df[[time_col]]),]
+  
+  n_total <- nrow(df_ordered)
+  n_train <- floor(prop_train * n_total)
+  
+  train <- df_ordered[1:n_train, ]
+  test <- df_ordered[(n_train+1):n_total, ]
+  
+  return(list(train = train, test = test))
+  
+}
+
+# Data Sets List
+sensors_list <- list(
+  RSSI_01 = tinovi01_RSSI,
+  RSSI_02 = tinovi02_RSSI,
+  RSSI_03 = tinovi03_RSSI,
+  RSSI_04 = tinovi04_RSSI,
+  RSSI_05 = tinovi05_RSSI,
+  RSSI_06 = tinovi06_RSSI,
+  RSSI_07 = milesight01_RSSI,
+  RSSI_08 = milesight02_RSSI
+)
+
+sensors_split <- lapply(sensors_list, split_train_test)
+
+
+
 
 
 
