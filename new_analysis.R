@@ -52,8 +52,6 @@ combined_hourly_env <- env |>
 
 summary(combined_hourly_env[,-1])
 
-
-
 # Select the RSSI's values
 
 tinovi01_RSSI <- combined_hourly_sensors |> 
@@ -65,7 +63,11 @@ tinovi02_RSSI <- combined_hourly_sensors |>
 tinovi03_RSSI <- combined_hourly_sensors |> 
   dplyr::filter(nodeid == "tinovi-03")
 
+<<<<<<< HEAD
 tinovi04_RSSI <- combined_hourly_sensors |> #8634
+=======
+tinovi04_RSSI <- combined_hourly_sensors |> # n = 8634
+>>>>>>> 780df678e566f69832ad5933281558491e6f6d42
   dplyr::filter(nodeid == "tinovi-04")
 
 tinovi05_RSSI <- combined_hourly_sensors |> 
@@ -91,6 +93,7 @@ tinovi05_RSSI <- inner_join(tinovi05_RSSI, combined_hourly_env, by = "rdtimestam
 tinovi06_RSSI <- inner_join(tinovi06_RSSI, combined_hourly_env, by = "rdtimestamp") 
 milesight01_RSSI <- inner_join(milesight01_RSSI, combined_hourly_env, by = "rdtimestamp")
 milesight02_RSSI <- inner_join(milesight02_RSSI, combined_hourly_env, by = "rdtimestamp")
+
 
 
 
@@ -129,6 +132,69 @@ sensors_list <- list(
 )
 
 sensors_split <- lapply(sensors_list, split_train_test)
+
+
+######################33 
+
+
+## Pearson's correlation ----
+
+teste <- psych::corr.test(tinovi01_RSSI[, c(3:8)])
+
+psych::corr.test(tinovi02_RSSI[, c(3:8)])
+psych::corr.test(tinovi03_RSSI[, c(3:8)])
+psych::corr.test(tinovi04_RSSI[, c(3:8)])
+psych::corr.test(tinovi05_RSSI[, c(3:8)])
+psych::corr.test(tinovi06_RSSI[, c(3:8)])
+psych::corr.test(milesight01_RSSI[, c(3:8)])
+psych::corr.test(milesight02_RSSI[, c(3:8)])
+
+
+
+### Time series Figures ----
+
+# RSSI_01 <- xts(tinovi01_RSSI$rssi, order.by=tinovi01_RSSI$rdtimestamp)
+# RSSI_02 <- xts(tinovi02_RSSI$rssi, order.by = tinovi02_RSSI$rdtimestamp)
+# RSSI_03 <- xts(tinovi03_RSSI$rssi, order.by = tinovi03_RSSI$rdtimestamp)
+# RSSI_04 <- xts(tinovi04_RSSI$rssi, order.by = tinovi04_RSSI$rdtimestamp)
+# RSSI_05 <- xts(tinovi05_RSSI$rssi, order.by = tinovi05_RSSI$rdtimestamp)
+# RSSI_06 <- xts(tinovi06_RSSI$rssi, order.by = tinovi06_RSSI$rdtimestamp)
+# RSSI_07 <- xts(milesight01_RSSI$rssi, order.by=milesight01_RSSI$rdtimestamp)
+# RSSI_08 <- xts(milesight02_RSSI$rssi, order.by=milesight02_RSSI$rdtimestamp)
+# 
+# {plot(RSSI_01,main="", yaxis.right=FALSE, grid.col = "white",
+#       format.labels="%b-%Y", main.timespan = FALSE,
+#       cex.axis=1.2,
+#       lwd=0.5,ylim=c(-115,-42),ylab="",cex.lab=1.2)
+#   par(cex.lab=1.2, cex.axis=1.2, cex.main=1.2, cex.sub=1.2)
+#   lines(RSSI_02,main="RSSI 02",col=2)
+#   lines(RSSI_03,main="RSSI 02",col=3)
+#   lines(RSSI_04,main="RSSI 02",col=4)
+#   addLegend("topright",
+#             legend.names=c("RSSI 01","RSSI 02","RSSI 03","RSSI 04"),
+#             col=1:4, cex=1.2,
+#             lwd=rep(.5,4),
+#             ncol=2,
+#             bg="white")
+# }
+# 
+# {
+#   plot(RSSI_05,main="", yaxis.right=FALSE, grid.col = "white",
+#        format.labels="%b-%Y", main.timespan = FALSE,
+#        cex.axis=1.2,
+#        lwd=0.5,ylim=c(-115,-42),ylab="",cex.lab=1.2)
+#   par(cex.lab=1.2, cex.axis=1.2, cex.main=1.2, cex.sub=1.2)
+#   lines(RSSI_06,main="",col=2)
+#   lines(RSSI_07,main="",col=3)
+#   lines(RSSI_08,main="",col=4)
+#   addLegend("topright",
+#             legend.names=c("RSSI 05","RSSI 06","RSSI 07","RSSI 08"),
+#             col=1:4, cex=1.2,
+#             lwd=rep(.5,4),
+#             ncol=2,
+#             bg="white")
+# }
+
 
 
 
