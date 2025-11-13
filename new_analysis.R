@@ -63,11 +63,7 @@ tinovi02_RSSI <- combined_hourly_sensors |>
 tinovi03_RSSI <- combined_hourly_sensors |> 
   dplyr::filter(nodeid == "tinovi-03")
 
-<<<<<<< HEAD
-tinovi04_RSSI <- combined_hourly_sensors |> #8634
-=======
 tinovi04_RSSI <- combined_hourly_sensors |> # n = 8634
->>>>>>> 780df678e566f69832ad5933281558491e6f6d42
   dplyr::filter(nodeid == "tinovi-04")
 
 tinovi05_RSSI <- combined_hourly_sensors |> 
@@ -95,13 +91,15 @@ milesight01_RSSI <- inner_join(milesight01_RSSI, combined_hourly_env, by = "rdti
 milesight02_RSSI <- inner_join(milesight02_RSSI, combined_hourly_env, by = "rdtimestamp")
 
 
-
-
 ## Pearson's correlation ----
-correlation<-data[,c(2:12)]
 
-psych::corr.test(tinovi01_RSSI[, c(3:8)])
-
+psych::corr.test(tinovi02_RSSI[, c(3:8)])
+psych::corr.test(tinovi03_RSSI[, c(3:8)])
+psych::corr.test(tinovi04_RSSI[, c(3:8)])
+psych::corr.test(tinovi05_RSSI[, c(3:8)])
+psych::corr.test(tinovi06_RSSI[, c(3:8)])
+psych::corr.test(milesight01_RSSI[, c(3:8)])
+psych::corr.test(milesight02_RSSI[, c(3:8)])
 
 ### Train and Test sets -----
 
@@ -132,23 +130,6 @@ sensors_list <- list(
 )
 
 sensors_split <- lapply(sensors_list, split_train_test)
-
-
-######################33 
-
-
-## Pearson's correlation ----
-
-teste <- psych::corr.test(tinovi01_RSSI[, c(3:8)])
-
-psych::corr.test(tinovi02_RSSI[, c(3:8)])
-psych::corr.test(tinovi03_RSSI[, c(3:8)])
-psych::corr.test(tinovi04_RSSI[, c(3:8)])
-psych::corr.test(tinovi05_RSSI[, c(3:8)])
-psych::corr.test(tinovi06_RSSI[, c(3:8)])
-psych::corr.test(milesight01_RSSI[, c(3:8)])
-psych::corr.test(milesight02_RSSI[, c(3:8)])
-
 
 
 ### Time series Figures ----
@@ -195,7 +176,7 @@ psych::corr.test(milesight02_RSSI[, c(3:8)])
 #             bg="white")
 # }
 
-
+### ----
 
 
 
