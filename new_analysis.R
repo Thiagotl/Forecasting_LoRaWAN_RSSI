@@ -5,6 +5,8 @@ library(xts)
 library(lmtest)
 library(forecast)
 library(stats)
+library(knitr)
+library(kableExtra)
 
 
 
@@ -50,7 +52,20 @@ combined_hourly_env <- env |>
   )
   
 
-summary(combined_hourly_env[,-1])
+# summary environment variables
+
+sum1 <- round(sapply(combined_hourly_env[,-1], summary),4)
+sum1 <-  t(sum1) |> as.data.frame()
+#summary(combined_hourly_env[,-1])
+
+#colSums(is.na(combined_hourly_env))
+
+kbl(sum1,
+format  = "latex",
+booktabs = TRUE,
+caption = "XX"
+) |>
+  kable_classic(full_width = FALSE)
 
 # Select the RSSI's values
 
@@ -92,6 +107,66 @@ tinovi06_RSSI <- inner_join(tinovi06_RSSI, combined_hourly_env, by = "rdtimestam
 milesight01_RSSI <- inner_join(milesight01_RSSI, combined_hourly_env, by = "rdtimestamp")
 milesight02_RSSI <- inner_join(milesight02_RSSI, combined_hourly_env, by = "rdtimestamp")
 
+summary(tinovi02_RSSI[, -c(1:2)])
+
+
+rss_list <- list(
+  Tinovi01    = tinovi01_RSSI,
+  Tinovi02    = tinovi02_RSSI,
+  Tinovi03    = tinovi03_RSSI,
+  Tinovi04    = tinovi04_RSSI,
+  Tinovi05    = tinovi05_RSSI,
+  Tinovi06    = tinovi06_RSSI,
+  Milesight01 = milesight01_RSSI,
+  Milesight02 = milesight02_RSSI
+)
+
+
+
+make_summary_df <- function(df, sensor_name, drop_cols = 1:2){
+  
+  num_df  <- df[, -drop_cols, drop = FALSE]
+  
+  sum_mat <- sapply(num_df, summary)
+  
+  out <- as.data.frame(t(sum_mat))
+  
+  out$Sensor   <- sensor_name
+  out$Env      <- rownames(out)
+  
+  out <- out |>
+    relocate(Sensor, Env)
+  
+  out[, -(1:2)] <- round(out[, -(1:2)], 4)
+  
+  return(out)
+ 
+}
+
+
+summary_all <- imap_dfr(
+  rss_list,
+  ~ make_summary_df(.x, sensor_name = .y)
+)
+
+summary_all <- summary_all |>
+  arrange(Sensor, Env)
+
+rownames(summary_all) <- NULL
+
+kbl(
+  summary_all,
+  format   = "latex",
+  booktabs = TRUE,
+  row.names = FALSE,
+  caption  = ""
+) |> 
+  kable_classic(full_width = FALSE) |>
+  collapse_rows(
+    columns = 1,  
+    valign  = "middle"
+  )
+
 
 ## Pearson's correlation ----
 
@@ -114,7 +189,7 @@ psych::corr.test(milesight02_RSSI[, c(3:8)])
 # RSSI_06 <- xts(tinovi06_RSSI$rssi, order.by = tinovi06_RSSI$rdtimestamp)
 # RSSI_07 <- xts(milesight01_RSSI$rssi, order.by=milesight01_RSSI$rdtimestamp)
 # RSSI_08 <- xts(milesight02_RSSI$rssi, order.by=milesight02_RSSI$rdtimestamp)
-# 
+#
 # {plot(RSSI_01,main="", yaxis.right=FALSE, grid.col = "white",
 #       format.labels="%b-%Y", main.timespan = FALSE,
 #       cex.axis=1.2,
