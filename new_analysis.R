@@ -7,6 +7,7 @@ library(forecast)
 library(stats)
 library(knitr)
 library(kableExtra)
+library(lubridate)
 
 
 
@@ -170,6 +171,7 @@ kbl(
 
 ## Pearson's correlation ----
 
+psych::corr.test(tinovi01_RSSI[, c(3:8)])
 psych::corr.test(tinovi02_RSSI[, c(3:8)])
 psych::corr.test(tinovi03_RSSI[, c(3:8)])
 psych::corr.test(tinovi04_RSSI[, c(3:8)])
@@ -177,6 +179,64 @@ psych::corr.test(tinovi05_RSSI[, c(3:8)])
 psych::corr.test(tinovi06_RSSI[, c(3:8)])
 psych::corr.test(milesight01_RSSI[, c(3:8)])
 psych::corr.test(milesight02_RSSI[, c(3:8)])
+
+
+
+# make_corr_table <- function(data, caption) {
+#   ct  <- psych::corr.test(data[, 3:8])
+#   tab <- round(ct$r, 2)
+#   
+#   kbl(
+#     tab,
+#     format  = "latex",
+#     booktabs = TRUE,
+#     caption = caption
+#   ) |>
+#     kable_classic(full_width = FALSE)
+# }
+# 
+# make_corr_table(tinovi01_RSSI, "Correlation matrix - Tinovi 02")
+# make_corr_table(tinovi02_RSSI, "Correlation matrix - Tinovi 02")
+# make_corr_table(tinovi03_RSSI, "Correlation matrix - Tinovi 03")
+# make_corr_table(tinovi04_RSSI, "Correlation matrix - Tinovi 04")
+# make_corr_table(tinovi05_RSSI, "Correlation matrix - Tinovi 05")
+# make_corr_table(tinovi06_RSSI, "Correlation matrix - Tinovi 06")
+# make_corr_table(milesight01_RSSI, "Correlation matrix - Milesight 01")
+# make_corr_table(milesight02_RSSI, "Correlation matrix - Milesight 02")
+
+
+triangular_corr_table <- function(data, caption, type = c("lower", "upper")) {
+  type <- match.arg(type)
+  
+  ct <- psych::corr.test(data[, 3:8])
+  M  <- round(ct$r, 2)
+  
+  if (type == "lower") {
+    M[upper.tri(M)] <- ""
+  } else {
+    M[lower.tri(M)] <- ""
+  }
+  
+  M <- as.data.frame(M)
+  
+  kbl(
+    M,
+    format  = "latex",
+    booktabs = TRUE,
+    caption = caption
+  ) |>
+    kable_classic(full_width = FALSE)
+}
+
+triangular_corr_table(tinovi01_RSSI, "Correlation matrix - Tinovi 01")
+triangular_corr_table(tinovi02_RSSI, "Correlation matrix - Tinovi 02")
+triangular_corr_table(tinovi03_RSSI, "Correlation matrix - Tinovi 03")
+triangular_corr_table(tinovi04_RSSI, "Correlation matrix - Tinovi 04")
+triangular_corr_table(tinovi05_RSSI, "Correlation matrix - Tinovi 05")
+triangular_corr_table(tinovi06_RSSI, "Correlation matrix - Tinovi 06")
+triangular_corr_table(milesight01_RSSI, "Correlation matrix - Milesight 01")
+triangular_corr_table(milesight02_RSSI, "Correlation matrix - Milesight 02")
+
 
 
 ### Time series Figures ----
@@ -225,7 +285,29 @@ psych::corr.test(milesight02_RSSI[, c(3:8)])
 
 ### Train and Test sets -----
 
-split_train_test <- function(df, time_col = "rdtimestamp", prop_train = 0.8){
+
+add_season_dummies <- function(df, time_col = "rdtimestamp") {
+  df |>
+    mutate(
+      month  = month(.data[[time_col]]),
+      season = case_when(
+        month %in% c(12, 1, 2, 3) ~ "winter",  # dez–mar
+        month %in% 4:5            ~ "spring",  # abr–mai
+        month %in% 6:8            ~ "summer",  # jun–ago
+        TRUE                      ~ "autumn"   # set–nov
+      ),
+      season = factor(season, levels = c("winter", "spring", "summer", "autumn")),
+      # winter é referência → não criamos dummy pra ele
+      season_spring = as.integer(season == "spring"),
+      season_summer = as.integer(season == "summer"),
+      season_autumn = as.integer(season == "autumn")
+    ) |>
+    select(-month, -season)
+}
+
+
+
+split_train_test <- function(df, time_col = "rdtimestamp", prop_train = 0.85){
   
   df_ordered <- df[order(df[[time_col]]),]
   
@@ -241,22 +323,37 @@ split_train_test <- function(df, time_col = "rdtimestamp", prop_train = 0.8){
 
 # Data Sets List
 sensors_list <- list(
-  RSSI_01 = tinovi01_RSSI,
-  RSSI_02 = tinovi02_RSSI,
-  RSSI_03 = tinovi03_RSSI,
-  RSSI_04 = tinovi04_RSSI,
-  RSSI_05 = tinovi05_RSSI,
-  RSSI_06 = tinovi06_RSSI
-  #RSSI_07 = milesight01_RSSI,
-  #RSSI_08 = milesight02_RSSI
+  #RSSI_01 = tinovi01_RSSI,
+  #RSSI_02 = tinovi02_RSSI,
+  #RSSI_03 = tinovi03_RSSI,
+  #RSSI_04 = tinovi04_RSSI,
+  #RSSI_05 = tinovi05_RSSI,
+  #RSSI_06 = tinovi06_RSSI
+  RSSI_07 = milesight01_RSSI,
+  RSSI_08 = milesight02_RSSI
 )
+
+
+sensors_list <- lapply(sensors_list, add_season_dummies)
 
 sensors_split <- lapply(sensors_list, split_train_test)
 
-### Auxiliary Functions ----
+
+###Auxiliary Functions 
 
 rss_col  <- "rssi"
-cov_cols <- c("soiltemp","soilhum")
+#cov_cols <- c("soiltemp","soilhum")
+cov_cols <- c(
+  
+  #"soiltemp",
+  #"soilhum",
+  "airtemp",
+  "airhum",
+  "season_spring",
+  "season_summer",
+  "season_autumn"
+)
+
 time_col <- "rdtimestamp"
 
 make_x <- function(df) {
@@ -264,18 +361,33 @@ make_x <- function(df) {
 }
 
 
-sensor_names <- names(sensors_list)                 
+sensor_names <- names(sensors_list)
 n_sens <- length(sensor_names)
+n_cov  <- length(cov_cols)
 
-order_arima <- matrix(NA, 6, 3)
-MAE <- MAPE <- RMSE <- COR <- matrix(NA, 6, 4)
-colnames(MAE) <- colnames(MAPE) <- colnames(RMSE) <- colnames(COR) <-
-  c("ARIMA-TEMP+HUM","ARIMA-TEMP","ARIMA-HUM","ARIMA")
-rownames(MAPE) <- rownames(RMSE) <- rownames(order_arima) <- rownames(COR) <- sensor_names
-Xsig <- values <- sinal <- matrix("", 6, 4)
-rownames(Xsig) <- sensor_names
+cov_labels <- c("T", "RH", "Spring", "Summer", "Autumn")
+stopifnot(length(cov_labels) == n_cov)
 
-for (i in seq_len(n_sens)){
+order_arima <- matrix(NA, n_sens, 3,
+                      dimnames = list(sensor_names, c("p","d","q")))
+
+MAE  <- MAPE <- RMSE <- COR <- matrix(NA, n_sens, 4,
+                                      dimnames = list(sensor_names,
+                                                      c("ARIMA-ALL", "ARIMA-TEMP", "ARIMA-HUM", "ARIMA")))
+
+Xsig   <- matrix("",       n_sens, n_cov,
+                 dimnames = list(sensor_names, cov_labels))
+sinal  <- matrix("",       n_sens, n_cov,
+                 dimnames = list(sensor_names, cov_labels))
+values <- matrix(NA_real_, n_sens, n_cov,
+                 dimnames = list(sensor_names, cov_labels))
+
+
+Winter_sig <- rep(NA, n_sens)
+names(Winter_sig) <- sensor_names
+
+
+for (i in seq_len(n_sens)) {
   
   nm <- sensor_names[i]
   tr <- sensors_split[[nm]]$train
@@ -286,81 +398,81 @@ for (i in seq_len(n_sens)){
   
   y_tr <- tr[[rss_col]]
   y_te <- te[[rss_col]]
-  X <- make_x(tr)
-  Xtest <- make_x(te)
   
-  #Xchoosed<-X[,1]
-  #Xchoosedt<-Xtest[,1]
+  X_tr <- make_x(tr)   
+  X_te <- make_x(te)
   
-  # ARIMA-COMPLETO
-  a01<-assign(paste0("arimax0",i), auto.arima(y_tr,xreg = X,allowdrift=FALSE, seasonal = T))
-  tcoef<-(coeftest(a01)<0.05)[(length(a01$coef)-dim(X)[2]+1):length(a01$coef),4]
-  #Xnew<-X[,tcoef]
-  order_arima[i, ] <- arimaorder(a01)
-  Xsig[i,]<-c(c("T","RH")[tcoef],rep("",4-sum(tcoef)))
-  sinal[i,]<-(coef(a01)<0)[(length(a01$coef)-dim(X)[2]+1):length(a01$coef)]
-  values[i,]<-(coef(a01))[(length(a01$coef)-dim(X)[2]+1):length(a01$coef)]
+  a01 <- auto.arima(y_tr, xreg = X_tr, allowdrift = FALSE)
+  ord <- arimaorder(a01)
+  order_arima[i, ] <- ord
   
-  #Xnewt<-Xtest[,tcoef]
+  ct <- lmtest::coeftest(a01)
   
-  Xnew <-X[, 1] # Temperature
-  a02<-Arima(y_tr,arimaorder(a01),xreg=Xnew) # ARIMA Temperature
-  
-  a03<-Arima(y_tr,arimaorder(a01)) # ARIMA without covariates
-  
-  Xnew2 <-X[, 2] # Humidity
-  a04<-Arima(y_tr,order=arimaorder(a01),xreg=Xnew2) # ARIMA Humidity
+  idx_cov <- (nrow(ct) - n_cov + 1):nrow(ct)
+  pvals   <- ct[idx_cov, 4]
+  coefs   <- ct[idx_cov, 1]
+  sig     <- pvals < 0.05
   
   
-  # forecasting
+  Xsig[i, ]   <- ifelse(sig, cov_labels, "")
+  sinal[i, ]  <- ifelse(sig, ifelse(coefs > 0, "+", "-"), "")
+  values[i, ] <- coefs
+  
+  
+  int_idx <- which(rownames(ct) %in% c("intercept", "mean"))
+  if (length(int_idx) == 1L) {
+    Winter_sig[i] <- ct[int_idx, 4] < 0.05   
+  } else {
+    Winter_sig[i] <- NA                      
+  }
+ 
+  
+  Xtemp_tr <- X_tr[, "soiltemp", drop = FALSE]
+  Xtemp_te <- X_te[, "soiltemp",  drop = FALSE]
+  
+  Xhum_tr  <- X_tr[, "soilhum",   drop = FALSE]
+  Xhum_te  <- X_te[, "soilhum",   drop = FALSE]
+  
+  a02 <- forecast::Arima(y_tr, order = ord, xreg = Xtemp_tr)  # ARIMA-TEMP
+  a03 <- forecast::Arima(y_tr, order = ord)                   # ARIMA
+  a04 <- forecast::Arima(y_tr, order = ord, xreg = Xhum_tr)   # ARIMA-HUM
   
   RSSI_test <- y_te
   
-  # COMPLETO 
-  new1<-assign(paste0("arima_cov0",i),
-               Arima(RSSI_test ,xreg = Xtest,model=a01)) #one-step-ahead
+  new1 <- forecast::Arima(RSSI_test, model = a01, xreg = X_te)
+  new2 <- forecast::Arima(RSSI_test, model = a02, xreg = Xtemp_te)
+  new3 <- forecast::Arima(RSSI_test, model = a03)
+  new4 <- forecast::Arima(RSSI_test, model = a04, xreg = Xhum_te)
   
-  Xnewt <- Xtest[, 1] # Temperature
-  new2<-assign(paste0("arima_covstar",i),
-               Arima(RSSI_test ,xreg = Xnewt,model=a02)) #one-step-ahead
+  acc1 <- forecast::accuracy(RSSI_test, new1$fitted)
+  acc2 <- forecast::accuracy(RSSI_test, new2$fitted)
+  acc3 <- forecast::accuracy(RSSI_test, new4$fitted)
+  acc4 <- forecast::accuracy(RSSI_test, new3$fitted)
   
-  # Without covariates
-  new3<-assign(paste0("arima_pred0",i),
-               Arima(RSSI_test ,model=a03)) #one-step-ahead
-  # Humidity
-  Xnewt2 <- Xtest[, 2]
-  new4<-assign(paste0("arima_cov2star0",i),
-               Arima(RSSI_test ,xreg=Xnewt2,model=a04)) #one-step-ahead
+  MAPE[i, ] <- c(acc1[5], acc2[5], acc3[5], acc4[5])
+  RMSE[i, ] <- c(acc1[2], acc2[2], acc3[2], acc4[2])
+  MAE[i, ]  <- c(acc1[3], acc2[3], acc3[3], acc4[3])
   
-  MAPE[i,]<-c(forecast::accuracy(RSSI_test,new1$fitted)[5],
-              forecast::accuracy(RSSI_test,new2$fitted)[5],
-              forecast::accuracy(RSSI_test,new4$fitted)[5],
-              forecast::accuracy(RSSI_test,new3$fitted)[5]
-  )
-  RMSE[i,]<-c(forecast::accuracy(RSSI_test,new1$fitted)[2],
-              forecast::accuracy(RSSI_test,new2$fitted)[2],
-              forecast::accuracy(RSSI_test,new4$fitted)[2],
-              forecast::accuracy(RSSI_test,new3$fitted)[2]
-  )
-  COR[i,]<-c(cor(RSSI_test,new1$fitted),
-             cor(RSSI_test,new2$fitted),
-             cor(RSSI_test,new4$fitted),
-             cor(RSSI_test,new3$fitted)
-  )
-  MAE[i,]<-c(forecast::accuracy(RSSI_test,new1$fitted)[3],
-             forecast::accuracy(RSSI_test,new2$fitted)[3],
-             forecast::accuracy(RSSI_test,new4$fitted)[3],
-             forecast::accuracy(RSSI_test,new3$fitted)[3]
+  COR[i, ] <- c(
+    cor(RSSI_test, new1$fitted, use = "complete.obs"),
+    cor(RSSI_test, new2$fitted, use = "complete.obs"),
+    cor(RSSI_test, new3$fitted, use = "complete.obs"),
+    cor(RSSI_test, new4$fitted, use = "complete.obs")
   )
   
   
-  assign(paste0("result0",i),
-         t(data.frame(MAE=MAE[i,],MAPE=MAPE[i,],RMSE=RMSE[i,],COR=COR[i,]))
+  assign(
+    paste0("result0", i),
+    t(data.frame(MAE = MAE[i, ], MAPE = MAPE[i, ], RMSE = RMSE[i, ], COR = COR[i, ]))
   )
-  
 }
 
-print(cbind(order_arima,Xsig))
+
+
+
+
+
+print(cbind(order_arima,Xsig, Winter = ifelse(Winter_sig, "Winter", "")))
 
 # Calculating the percentage difference with respect to ARIMA
 MAE_AUM<-(MAE[,4]-MAE[,1:3])/MAE[,4]
@@ -373,6 +485,9 @@ result<- cbind(result01,rbind(
   MAE_AUM[1,],M_AUM[1,],RMSE_AUM[1,],COR_AUM[1,]
 )*100
 )
+
+
+
 for(i in 2:6){ #8
   r<-cbind(get(paste0("result0",i)),rbind(
     MAE_AUM[i,],M_AUM[i,],RMSE_AUM[i,],COR_AUM[i,]
@@ -380,13 +495,14 @@ for(i in 2:6){ #8
   )
   result<-abind::abind(result,r,along = 1)
 }
-print(result,digits=7) # TABLE V
+print(result,digits=4) # TABLE V
+
 
 
 # Counting the times the models were the best option
 count<-apply(cbind(apply(result01[1:3,], 1, rank)==1,
                    COR=rank(result01[4,])==4),1,sum)
-for(i in 2:6){#8
+for(i in 1:6){#8
   r<-get(paste0("result0",i))
   r<-apply(cbind(apply(r[1:3,], 1, rank)==1,
                  COR=rank(r[4,])==4),1,sum)
