@@ -108,8 +108,6 @@ tinovi06_RSSI <- inner_join(tinovi06_RSSI, combined_hourly_env, by = "rdtimestam
 milesight01_RSSI <- inner_join(milesight01_RSSI, combined_hourly_env, by = "rdtimestamp")
 milesight02_RSSI <- inner_join(milesight02_RSSI, combined_hourly_env, by = "rdtimestamp")
 
-summary(tinovi02_RSSI[, -c(1:2)])
-
 
 rss_list <- list(
   Tinovi01    = tinovi01_RSSI,
@@ -323,14 +321,14 @@ split_train_test <- function(df, time_col = "rdtimestamp", prop_train = 0.85){
 
 # Data Sets List
 sensors_list <- list(
-  #RSSI_01 = tinovi01_RSSI,
-  #RSSI_02 = tinovi02_RSSI,
-  #RSSI_03 = tinovi03_RSSI,
-  #RSSI_04 = tinovi04_RSSI,
-  #RSSI_05 = tinovi05_RSSI,
-  #RSSI_06 = tinovi06_RSSI
-  RSSI_07 = milesight01_RSSI,
-  RSSI_08 = milesight02_RSSI
+  RSSI_01 = tinovi01_RSSI,
+  RSSI_02 = tinovi02_RSSI,
+  RSSI_03 = tinovi03_RSSI,
+  RSSI_04 = tinovi04_RSSI,
+  RSSI_05 = tinovi05_RSSI,
+  RSSI_06 = tinovi06_RSSI
+  #RSSI_07 = milesight01_RSSI,
+  #RSSI_08 = milesight02_RSSI
 )
 
 
@@ -467,11 +465,6 @@ for (i in seq_len(n_sens)) {
   )
 }
 
-
-
-
-
-
 print(cbind(order_arima,Xsig, Winter = ifelse(Winter_sig, "Winter", "")))
 
 # Calculating the percentage difference with respect to ARIMA
@@ -486,8 +479,6 @@ result<- cbind(result01,rbind(
 )*100
 )
 
-
-
 for(i in 2:6){ #8
   r<-cbind(get(paste0("result0",i)),rbind(
     MAE_AUM[i,],M_AUM[i,],RMSE_AUM[i,],COR_AUM[i,]
@@ -497,12 +488,10 @@ for(i in 2:6){ #8
 }
 print(result,digits=4) # TABLE V
 
-
-
 # Counting the times the models were the best option
 count<-apply(cbind(apply(result01[1:3,], 1, rank)==1,
                    COR=rank(result01[4,])==4),1,sum)
-for(i in 1:6){#8
+for(i in 2:6){#8
   r<-get(paste0("result0",i))
   r<-apply(cbind(apply(r[1:3,], 1, rank)==1,
                  COR=rank(r[4,])==4),1,sum)
@@ -512,8 +501,4 @@ count<-abind::abind(count,apply(count,1,sum),along = 2)
 colnames(count)<-c(rownames(MAPE),"Overall")
 
 print(t(count)) # TABLE VI
-
-
-
-
 
