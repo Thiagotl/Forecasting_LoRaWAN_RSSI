@@ -21,7 +21,7 @@ rssi_test <- sensors_split$RSSI_01$test |>
   )
 
 rssi_train  |> 
-  plot_time_series(rdtimestamp, rssi, .interactive = FALSE)
+  plot_time_series(rdtimestamp, rssi, .interactive = TRUE)
 
 # ARIMA
 model_fit_arima_xreg <- arima_reg() |>

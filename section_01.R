@@ -17,8 +17,15 @@ sensors <- readr::read_delim("new_data/radio_values.csv",
   dplyr::mutate(rdtimestamp= as.POSIXct(rdtimestamp, tz = "GMT",
                                       origin="1970-01-01 00:00:00"))
 
+new_sensors <- readr::read_delim("radio_vals_after.csv", 
+                             delim = ",", escape_double = FALSE, trim_ws = TRUE) |> 
+  dplyr::mutate(rdtimestamp= as.POSIXct(rdtimestamp, tz = "GMT",
+                                        origin="1970-01-01 00:00:00"))
+sensors <- rbind(sensors,new_sensors)
+
+
 # start 03-23-2024 
-# final 03-23-2025
+# final 11-07-2025
 
 na_sums <- colSums(is.na(sensors)) # snr=8 
 
@@ -39,6 +46,15 @@ env <- readr::read_delim("new_data/env_values.csv",
                          delim = ",", escape_double = FALSE, trim_ws = TRUE) |> 
   dplyr::mutate(rdtimestamp= as.POSIXct(rdtimestamp, tz = "GMT",
                                         origin="1970-01-01 00:00:00"))
+
+
+new_env <- readr::read_delim("env_vals_after.csv", 
+                             delim = ",", escape_double = FALSE, trim_ws = TRUE) |> 
+  dplyr::mutate(rdtimestamp= as.POSIXct(rdtimestamp, tz = "GMT",
+                                        origin="1970-01-01 00:00:00"))
+
+env <- rbind(env, new_env)
+
 
 combined_hourly_env <- env |>
   group_by(
@@ -121,32 +137,76 @@ rss_list <- list(
 )
 
 
+# 
+# make_summary_df <- function(df, sensor_name, drop_cols = 1:2){
+#   
+#   num_df  <- df[, -drop_cols, drop = FALSE]
+#   
+#   sum_mat <- sapply(num_df, summary)
+#   
+#   out <- as.data.frame(t(sum_mat))
+#   
+#   out$Sensor   <- sensor_name
+#   out$Env      <- rownames(out)
+#   
+#   out <- out |>
+#     relocate(Sensor, Env)
+#   
+#   out[, -(1:2)] <- round(out[, -(1:2)], 4)
+#   
+#   return(out)
+#  
+# }
 
-make_summary_df <- function(df, sensor_name, drop_cols = 1:2){
+
+make_summary_df <- function(df, sensor_name, drop_cols = 1:2) {
   
-  num_df  <- df[, -drop_cols, drop = FALSE]
+  # pega só as colunas numéricas (independente da posição)
+  num_df <- df |>
+    dplyr::select(where(is.numeric))
   
+  # se quiser manter a lógica de "tirar as 2 primeiras" especificamente:
+  # num_df <- df[, -drop_cols, drop = FALSE]
+  # num_df <- num_df[, sapply(num_df, is.numeric), drop = FALSE]
+  
+  # summary de cada coluna numérica
   sum_mat <- sapply(num_df, summary)
   
   out <- as.data.frame(t(sum_mat))
   
-  out$Sensor   <- sensor_name
-  out$Env      <- rownames(out)
+  out$Sensor <- sensor_name
+  out$Env    <- rownames(out)
   
   out <- out |>
-    relocate(Sensor, Env)
+    dplyr::relocate(Sensor, Env)
   
-  out[, -(1:2)] <- round(out[, -(1:2)], 4)
+  # arredonda apenas colunas numéricas
+  out <- out |>
+    dplyr::mutate(
+      dplyr::across(
+        where(is.numeric),
+        ~ round(.x, 4)
+      )
+    )
+  
+  rownames(out) <- NULL
   
   return(out)
- 
 }
 
 
-summary_all <- imap_dfr(
+
+# summary_all <- imap_dfr(
+#   rss_list,
+#   ~ make_summary_df(.x, sensor_name = .y)
+# )
+
+
+summary_all <- purrr::imap_dfr(
   rss_list,
   ~ make_summary_df(.x, sensor_name = .y)
 )
+
 
 summary_all <- summary_all |>
   arrange(Sensor, Env)
@@ -305,7 +365,7 @@ add_season_dummies <- function(df, time_col = "rdtimestamp") {
 
 
 
-split_train_test <- function(df, time_col = "rdtimestamp", prop_train = 0.85){
+split_train_test <- function(df, time_col = "rdtimestamp", prop_train = 0.8){
   
   df_ordered <- df[order(df[[time_col]]),]
   
@@ -343,10 +403,10 @@ rss_col  <- "rssi"
 #cov_cols <- c("soiltemp","soilhum")
 cov_cols <- c(
   
-  #"soiltemp",
-  #"soilhum",
-  "airtemp",
-  "airhum",
+  "soiltemp",
+  "soilhum",
+  #"airtemp",
+  #"airhum",
   "season_spring",
   "season_summer",
   "season_autumn"
@@ -465,7 +525,9 @@ for (i in seq_len(n_sens)) {
   )
 }
 
-print(cbind(order_arima,Xsig, Winter = ifelse(Winter_sig, "Winter", "")))
+print(cbind(order_arima,Xsig))
+
+#Winter = ifelse(Winter_sig, "Winter", ""
 
 # Calculating the percentage difference with respect to ARIMA
 MAE_AUM<-(MAE[,4]-MAE[,1:3])/MAE[,4]
