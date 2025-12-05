@@ -11,11 +11,20 @@ library(lubridate)
 
 
 
-### Nodes ---- 
-sensors <- readr::read_delim("new_data/radio_values.csv", 
+### Train data set - Nodes and Environment ---- 
+
+sensors <- readr::read_delim("train_radio_values.csv", 
                              delim = ",", escape_double = FALSE, trim_ws = TRUE) |> 
   dplyr::mutate(rdtimestamp= as.POSIXct(rdtimestamp, tz = "GMT",
                                       origin="1970-01-01 00:00:00"))
+
+env <- readr::read_delim("train_env_values.csv", 
+                             delim = ",", escape_double = FALSE, trim_ws = TRUE) |> 
+  dplyr::mutate(rdtimestamp= as.POSIXct(rdtimestamp, tz = "GMT",
+                                        origin="1970-01-01 00:00:00"))
+
+
+
 
 new_sensors <- readr::read_delim("radio_vals_after.csv", 
                              delim = ",", escape_double = FALSE, trim_ws = TRUE) |> 
