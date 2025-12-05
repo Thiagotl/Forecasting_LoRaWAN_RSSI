@@ -85,47 +85,33 @@ env_hour_test <- env_test |>
   )
   
 
-# summary environment variables
+### Select the RSSI's values - Train ----
 
-sum1 <- round(sapply(combined_hourly_env[,-1], summary),4)
-sum1 <-  t(sum1) |> as.data.frame()
-#summary(combined_hourly_env[,-1])
-
-#colSums(is.na(combined_hourly_env))
-
-kbl(sum1,
-format  = "latex",
-booktabs = TRUE,
-caption = "XX"
-) |>
-  kable_classic(full_width = FALSE)
-
-# Select the RSSI's values
-
-# tinovi - solo
-tinovi01_RSSI <- combined_hourly_sensors |> 
+# tinovi - soil
+tinovi01_RSSI_train <- sensors_hour_train |> 
   dplyr::filter(nodeid == "tinovi-01") 
 
-tinovi02_RSSI <- combined_hourly_sensors |> 
+tinovi02_RSSI_train <- sensors_hour_train |> 
   dplyr::filter(nodeid == "tinovi-02")
 
-tinovi03_RSSI <- combined_hourly_sensors |> 
+tinovi03_RSSI_train <- sensors_hour_train |> 
   dplyr::filter(nodeid == "tinovi-03")
 
-tinovi04_RSSI <- combined_hourly_sensors |> # n = 8634
+tinovi04_RSSI_train <- sensors_hour_train |>
   dplyr::filter(nodeid == "tinovi-04")
 
-tinovi05_RSSI <- combined_hourly_sensors |> 
+tinovi05_RSSI_train <- sensors_hour_train |> 
   dplyr::filter(nodeid == "tinovi-05")
 
-tinovi06_RSSI <- combined_hourly_sensors |> 
+tinovi06_RSSI_train <- sensors_hour_train |> 
   dplyr::filter(nodeid == "tinovi-06")
 
-# milesight - 
-milesight01_RSSI <- combined_hourly_sensors |> 
+# milesight - air
+
+milesight01_RSSI_train <- sensors_hour_train |> 
   dplyr::filter(nodeid == "milesight-01")
 
-milesight02_RSSI <- combined_hourly_sensors |> 
+milesight02_RSSI_train <- sensors_hour_train |> 
   dplyr::filter(nodeid == "milesight-02")
 
 
@@ -141,38 +127,34 @@ milesight01_RSSI <- inner_join(milesight01_RSSI, combined_hourly_env, by = "rdti
 milesight02_RSSI <- inner_join(milesight02_RSSI, combined_hourly_env, by = "rdtimestamp")
 
 
-rss_list <- list(
-  Tinovi01    = tinovi01_RSSI,
-  Tinovi02    = tinovi02_RSSI,
-  Tinovi03    = tinovi03_RSSI,
-  Tinovi04    = tinovi04_RSSI,
-  Tinovi05    = tinovi05_RSSI,
-  Tinovi06    = tinovi06_RSSI,
-  Milesight01 = milesight01_RSSI,
-  Milesight02 = milesight02_RSSI
+rss_train_list <- list(
+  Tinovi01    = tinovi01_RSSI_train,
+  Tinovi02    = tinovi02_RSSI_train,
+  Tinovi03    = tinovi03_RSSI_train,
+  Tinovi04    = tinovi04_RSSI_train,
+  Tinovi05    = tinovi05_RSSI_train,
+  Tinovi06    = tinovi06_RSSI_train,
+  Milesight01 = milesight01_RSSI_train,
+  Milesight02 = milesight02_RSSI_train
 )
 
 
-# 
-# make_summary_df <- function(df, sensor_name, drop_cols = 1:2){
-#   
-#   num_df  <- df[, -drop_cols, drop = FALSE]
-#   
-#   sum_mat <- sapply(num_df, summary)
-#   
-#   out <- as.data.frame(t(sum_mat))
-#   
-#   out$Sensor   <- sensor_name
-#   out$Env      <- rownames(out)
-#   
-#   out <- out |>
-#     relocate(Sensor, Env)
-#   
-#   out[, -(1:2)] <- round(out[, -(1:2)], 4)
-#   
-#   return(out)
-#  
-# }
+make_summary_rssi <- function(df, sensor_name, var_label = "RSSI"){
+  
+  num_df <- df |> select(where(is.numeric))
+  
+  x <- num_df[[1]]
+  s <- summary(x)
+  
+  if ("NA's"  ) {
+    
+  }
+  
+}
+
+make_summary_rssi(tinovi01_RSSI_train)
+
+
 
 
 make_summary_df <- function(df, sensor_name, drop_cols = 1:2) {
@@ -210,12 +192,6 @@ make_summary_df <- function(df, sensor_name, drop_cols = 1:2) {
   return(out)
 }
 
-
-
-# summary_all <- imap_dfr(
-#   rss_list,
-#   ~ make_summary_df(.x, sensor_name = .y)
-# )
 
 
 summary_all <- purrr::imap_dfr(
