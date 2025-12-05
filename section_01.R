@@ -13,32 +13,49 @@ library(lubridate)
 
 ### Train data set - Nodes and Environment ---- 
 
-sensors <- readr::read_delim("train_radio_values.csv", 
+# sensors
+sensors_train <- readr::read_delim("train_radio_values.csv", 
                              delim = ",", escape_double = FALSE, trim_ws = TRUE) |> 
   dplyr::mutate(rdtimestamp= as.POSIXct(rdtimestamp, tz = "GMT",
                                       origin="1970-01-01 00:00:00"))
 
-env <- readr::read_delim("train_env_values.csv", 
+sensors_hour_train <- sensors_train |> 
+  group_by(
+    nodeid,
+    rdtimestamp = floor_date(rdtimestamp, "hour")
+  ) |> 
+  summarise(
+    rssi = mean(rssi, na.rm = TRUE),
+    snr = mean(snr, na.rm = TRUE),
+    .groups = 'drop'
+  )
+
+#environment
+env_train <- readr::read_delim("train_env_values.csv", 
                              delim = ",", escape_double = FALSE, trim_ws = TRUE) |> 
   dplyr::mutate(rdtimestamp= as.POSIXct(rdtimestamp, tz = "GMT",
                                         origin="1970-01-01 00:00:00"))
 
 
+env_hour_train <- env_train |>
+  group_by(
+    rdtimestamp = floor_date(rdtimestamp, "hour") 
+  ) |> 
+  summarise(
+    soiltemp = mean(soiltemp, na.rm = T),
+    soilhum  = mean(soilhum, na.rm = T),
+    airtemp  = mean(airtemp, na.rm = T),
+    airhum   = mean(airhum, na.rm = T),
+    .groups = 'drop'
+  )
 
+### Test data set - Nodes and Environment ---- 
 
-new_sensors <- readr::read_delim("radio_vals_after.csv", 
-                             delim = ",", escape_double = FALSE, trim_ws = TRUE) |> 
+sensors_test <- readr::read_delim("test_radio_vals_after.csv", 
+                                   delim = ",", escape_double = FALSE, trim_ws = TRUE) |> 
   dplyr::mutate(rdtimestamp= as.POSIXct(rdtimestamp, tz = "GMT",
                                         origin="1970-01-01 00:00:00"))
-sensors <- rbind(sensors,new_sensors)
-
-
-# start 03-23-2024 
-# final 11-07-2025
-
-na_sums <- colSums(is.na(sensors)) # snr=8 
-
-combined_hourly_sensors <- sensors |> 
+sensors_hour_test <- sensors_test |> 
   group_by(
     nodeid,
     rdtimestamp = floor_date(rdtimestamp, "hour")
@@ -50,22 +67,12 @@ combined_hourly_sensors <- sensors |>
   )
 
 
-### Environment ----
-env <- readr::read_delim("new_data/env_values.csv", 
-                         delim = ",", escape_double = FALSE, trim_ws = TRUE) |> 
+env_test <- readr::read_delim("test_env_vals_after.csv", 
+                               delim = ",", escape_double = FALSE, trim_ws = TRUE) |> 
   dplyr::mutate(rdtimestamp= as.POSIXct(rdtimestamp, tz = "GMT",
                                         origin="1970-01-01 00:00:00"))
 
-
-new_env <- readr::read_delim("env_vals_after.csv", 
-                             delim = ",", escape_double = FALSE, trim_ws = TRUE) |> 
-  dplyr::mutate(rdtimestamp= as.POSIXct(rdtimestamp, tz = "GMT",
-                                        origin="1970-01-01 00:00:00"))
-
-env <- rbind(env, new_env)
-
-
-combined_hourly_env <- env |>
+env_hour_test <- env_test |>
   group_by(
     rdtimestamp = floor_date(rdtimestamp, "hour") 
   ) |> 
