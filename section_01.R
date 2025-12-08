@@ -117,14 +117,14 @@ milesight02_RSSI_train <- sensors_hour_train |>
 
 ## Joins ----
 
-tinovi01_RSSI <- inner_join(tinovi01_RSSI, combined_hourly_env, by = "rdtimestamp") 
-tinovi02_RSSI <- inner_join(tinovi02_RSSI, combined_hourly_env, by = "rdtimestamp") 
-tinovi03_RSSI <- inner_join(tinovi03_RSSI, combined_hourly_env, by = "rdtimestamp") 
-tinovi04_RSSI <- inner_join(tinovi04_RSSI, combined_hourly_env, by = "rdtimestamp") 
-tinovi05_RSSI <- inner_join(tinovi05_RSSI, combined_hourly_env, by = "rdtimestamp") 
-tinovi06_RSSI <- inner_join(tinovi06_RSSI, combined_hourly_env, by = "rdtimestamp") 
-milesight01_RSSI <- inner_join(milesight01_RSSI, combined_hourly_env, by = "rdtimestamp")
-milesight02_RSSI <- inner_join(milesight02_RSSI, combined_hourly_env, by = "rdtimestamp")
+# tinovi01_RSSI <- inner_join(tinovi01_RSSI, combined_hourly_env, by = "rdtimestamp") 
+# tinovi02_RSSI <- inner_join(tinovi02_RSSI, combined_hourly_env, by = "rdtimestamp") 
+# tinovi03_RSSI <- inner_join(tinovi03_RSSI, combined_hourly_env, by = "rdtimestamp") 
+# tinovi04_RSSI <- inner_join(tinovi04_RSSI, combined_hourly_env, by = "rdtimestamp") 
+# tinovi05_RSSI <- inner_join(tinovi05_RSSI, combined_hourly_env, by = "rdtimestamp") 
+# tinovi06_RSSI <- inner_join(tinovi06_RSSI, combined_hourly_env, by = "rdtimestamp") 
+# milesight01_RSSI <- inner_join(milesight01_RSSI, combined_hourly_env, by = "rdtimestamp")
+# milesight02_RSSI <- inner_join(milesight02_RSSI, combined_hourly_env, by = "rdtimestamp")
 
 
 rss_train_list <- list(
@@ -137,86 +137,6 @@ rss_train_list <- list(
   Milesight01 = milesight01_RSSI_train,
   Milesight02 = milesight02_RSSI_train
 )
-
-
-make_summary_rssi <- function(df, sensor_name, var_label = "RSSI"){
-  
-  num_df <- df |> select(where(is.numeric))
-  
-  x <- num_df[[1]]
-  s <- summary(x)
-  
-  if ("NA's"  ) {
-    
-  }
-  
-}
-
-make_summary_rssi(tinovi01_RSSI_train)
-
-
-
-
-make_summary_df <- function(df, sensor_name, drop_cols = 1:2) {
-  
-  # pega só as colunas numéricas (independente da posição)
-  num_df <- df |>
-    dplyr::select(where(is.numeric))
-  
-  # se quiser manter a lógica de "tirar as 2 primeiras" especificamente:
-  # num_df <- df[, -drop_cols, drop = FALSE]
-  # num_df <- num_df[, sapply(num_df, is.numeric), drop = FALSE]
-  
-  # summary de cada coluna numérica
-  sum_mat <- sapply(num_df, summary)
-  
-  out <- as.data.frame(t(sum_mat))
-  
-  out$Sensor <- sensor_name
-  out$Env    <- rownames(out)
-  
-  out <- out |>
-    dplyr::relocate(Sensor, Env)
-  
-  # arredonda apenas colunas numéricas
-  out <- out |>
-    dplyr::mutate(
-      dplyr::across(
-        where(is.numeric),
-        ~ round(.x, 4)
-      )
-    )
-  
-  rownames(out) <- NULL
-  
-  return(out)
-}
-
-
-
-summary_all <- purrr::imap_dfr(
-  rss_list,
-  ~ make_summary_df(.x, sensor_name = .y)
-)
-
-
-summary_all <- summary_all |>
-  arrange(Sensor, Env)
-
-rownames(summary_all) <- NULL
-
-kbl(
-  summary_all,
-  format   = "latex",
-  booktabs = TRUE,
-  row.names = FALSE,
-  caption  = ""
-) |> 
-  kable_classic(full_width = FALSE) |>
-  collapse_rows(
-    columns = 1,  
-    valign  = "middle"
-  )
 
 
 ## Pearson's correlation ----
