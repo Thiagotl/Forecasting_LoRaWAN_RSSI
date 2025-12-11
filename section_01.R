@@ -115,6 +115,39 @@ milesight02_RSSI_train <- sensors_hour_train |>
   dplyr::filter(nodeid == "milesight-02")
 
 
+### Select the RSSI's values - test ----
+
+# tinovi - soil
+tinovi01_RSSI_test <- sensors_hour_test |>
+  dplyr::filter(nodeid == "tinovi-01")
+
+tinovi02_RSSI_test <- sensors_hour_test |>
+  dplyr::filter(nodeid == "tinovi-02")
+
+tinovi03_RSSI_test <- sensors_hour_test |>
+  dplyr::filter(nodeid == "tinovi-03")
+
+tinovi04_RSSI_test <- sensors_hour_test |>
+  dplyr::filter(nodeid == "tinovi-04")
+
+tinovi05_RSSI_test <- sensors_hour_test|>
+  dplyr::filter(nodeid == "tinovi-05")
+
+tinovi06_RSSI_test <- sensors_hour_test|>
+  dplyr::filter(nodeid == "tinovi-06")
+
+# milesight - air
+
+milesight01_RSSI_test <- sensors_hour_test |>
+  dplyr::filter(nodeid == "milesight-01")
+
+milesight02_RSSI_test <- sensors_hour_test |>
+  dplyr::filter(nodeid == "milesight-02")
+
+
+
+summary(milesight02_RSSI_test[3])
+dim(milesight02_RSSI_test)
 ## Joins ----
 
 # tinovi01_RSSI <- inner_join(tinovi01_RSSI, combined_hourly_env, by = "rdtimestamp") 

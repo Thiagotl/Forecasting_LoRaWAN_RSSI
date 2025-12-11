@@ -1,3 +1,88 @@
+# Season
+
+library(forecast)
+library(tsibble)
+library(feasts)
+#library(ggseas)  devtools::install_github("ellisp/ggseas/pkg") # para visualização de séries temporais
+
+
+
+dados <- sensors_train |> 
+  mutate(
+    hora = hour(rdtimestamp ),           # Hora do dia (0-23)
+    dia_semana = wday(rdtimestamp , label = TRUE),  # Dia da semana
+    semana = week(rdtimestamp ),         # Semana do ano
+    mes = month(rdtimestamp , label = TRUE),        # Mês
+    dia_mes = day(rdtimestamp)          # Dia do mês
+  ) |> filter(nodeid == "tinovi-01")
+dados <- dados[-c(1:4),]
+
+dados <- tinovi01_RSSI_train[-c(1),]
+
+dados_ts <- dados %>%
+  as_tsibble(index = rdtimestamp) |> fill_gaps(.full = TRUE)
+
+# esse aqui é interessante 
+dados_ts %>%
+  gg_subseries(y = rssi, period = "1d") +
+  labs(
+    title = "",
+    subtitle = "",
+    y = "RSSI"
+  )
+
+dados_ts %>%
+  gg_season(y = rssi, period = "1m") +
+  labs(
+    title = "",
+    y = "RSSI",
+    x = "hour"
+  ) +
+  theme_minimal() +
+  scale_x_continuous(breaks = seq(0, 23, by = 3))
+
+
+
+
+ts_data <- ts(dados$rssi,
+              frequency = 24)
+
+dec <- decompose(ts_data)
+autoplot(dec)
+
+# Opção 1: Decomposição com duas sazonalidades
+decomp <- mstl(ts_data,
+               s.window = "periodic",
+               iterate = 2)
+
+# Opção 2: Especificar múltiplas frequências explicitamente
+decomp <- mstl(ts_data,
+               lambda = NULL,  
+               s.window = 24,  
+               iterate = 2)    
+
+autoplot(decomp)
+
+monthplot(ts_data,choice = "seasonal")
+
+
+
+y <- msts(ts_data, seasonal.periods = c(24, 168))
+fit <- mstl(
+  y,
+  s.window = c(13, 13),      
+  s.degree = 1,
+  t.degree = 1,
+  robust = TRUE,
+  inner = 2,
+  outer = 1
+)
+autoplot(fit)
+
+
+
+###  another tests----
+
 library(xgboost)
 library(tidymodels)
 library(modeltime)
@@ -107,5 +192,7 @@ forecast_tbl <- calibration_tbl |>
 
 forecast_tbl |>
   plot_modeltime_forecast(.interactive = TRUE)
+
+
 
 
