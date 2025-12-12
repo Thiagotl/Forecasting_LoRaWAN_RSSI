@@ -1,28 +1,156 @@
-# Season
 
 library(forecast)
 library(tsibble)
 library(feasts)
 #library(ggseas)  devtools::install_github("ellisp/ggseas/pkg") # para visualização de séries temporais
 
+locale_original <- Sys.getlocale("LC_TIME")
+Sys.setlocale("LC_TIME", "English")
 
+#Sys.setlocale("LC_TIME", locale_original) # - Restaurar localização original (opcional)
 
-dados <- sensors_train |> 
+dados <- sensors_hour_train |>
   mutate(
-    hora = hour(rdtimestamp ),           # Hora do dia (0-23)
-    dia_semana = wday(rdtimestamp , label = TRUE),  # Dia da semana
-    semana = week(rdtimestamp ),         # Semana do ano
-    mes = month(rdtimestamp , label = TRUE),        # Mês
-    dia_mes = day(rdtimestamp)          # Dia do mês
-  ) |> filter(nodeid == "tinovi-01")
-dados <- dados[-c(1:4),]
+    hours = hour(rdtimestamp ),          
+    week_day = wday(rdtimestamp, label = TRUE, abbr = TRUE, week_start = 1),
+    week_day_num = lubridate::wday(rdtimestamp, week_start = 1),
+    #weeks = week(rdtimestamp ),        
+    months = month(rdtimestamp, label = TRUE, abbr = TRUE),
+    months_num = month(rdtimestamp),
+    day_month = day(rdtimestamp),
+    
+    season = case_when(
+      months_num %in% c(12, 1, 2)  ~ "Winter",
+      months_num %in% c(3, 4, 5)   ~ "Spring",
+      months_num %in% c(6, 7, 8)   ~ "Summer",
+      months_num %in% c(9, 10, 11) ~ "Fall"
+    ),
+    season = factor(season, levels = c("Winter","Spring","Summer","Fall")),
+    
+    day_period = case_when(
+      hours >= 6  & hours < 12 ~ "Morning (6–11h)",
+      hours >= 12 & hours < 18 ~ "Afternoon (12–17h)",
+      hours >= 18 & hours < 24 ~ "Evening (18–23h)",
+      TRUE                     ~ "Night (0–5h)"
+    ),
+    day_period = factor(
+      day_period,
+      levels = c("Night (0–5h)", "Morning (6–11h)", 
+                 "Afternoon (12–17h)", "Evening (18–23h)")
+    )
+    
+  ) |> filter(nodeid == "tinovi-03")
 
-dados <- tinovi01_RSSI_train[-c(1),]
+dados <- dados[-c(1), ]
 
+#dados <- tinovi01_RSSI_train[-c(1),]
+
+ggplot(dados, aes(x = week_day, y = rssi, fill = week_day)) + # mesma coisa do boxplot de cima
+  geom_boxplot(alpha = 0.7) +
+  scale_fill_viridis_d(option = "plasma") +
+  labs(
+    title = "Distribuição de RSSI por Dia da Semana",
+    subtitle = "Dados coletados a cada 15 minutos durante um ano",
+    x = "Dia da Semana",
+    y = "Valor RSSI",
+    fill = "Dia"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    legend.position = "none" # Remove legenda se quiser
+  )
+
+
+ggplot(dados, aes(x = months, y = rssi, fill = months)) +
+  geom_boxplot(alpha = 0.7) +
+  scale_fill_viridis_d(option = "plasma") +
+  labs(
+    title = "Distribuição de RSSI por Mês",
+    subtitle = "Análise de sazonalidade mensal",
+    x = "Mês",
+    y = " RSSI"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    legend.position = "none" # Remove legenda se quiser
+  )
+
+
+ggplot(dados, aes(x = factor(hours), y = rssi)) +
+  geom_boxplot(fill = "lightgreen") +
+  labs(
+    title = "Distribuição de RSSI por Hora do Dia",
+    x = "Hora do Dia (0-23)",
+    y = "Valor RSSI"
+  ) +
+  theme_minimal()
+
+
+# Boxplot colorido por estação
+ggplot(dados, aes(x = months, y = rssi, fill = season)) +
+  geom_boxplot(alpha = 0.7) +
+  scale_fill_manual(values = c("lightblue", "lightgreen", "gold", "orange")) +
+  labs(
+    title = "Distribuição de RSSI por Mês com Destaque Sazonal",
+    subtitle = "Dados coletados na Itália (hemisfério norte)",
+    x = "Mês",
+    y = "Valor RSSI",
+    fill = "Estação"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+# Boxplot facetado muito bommmmmmm
+ggplot(dados, aes(x = week_day, y = rssi, fill = day_period)) +
+  geom_boxplot(alpha = 0.7) +
+  facet_wrap(~ day_period, ncol = 2) +
+  scale_fill_viridis_d(option = "plasma") +
+  labs(
+    title = "Distribuição de RSSI: Mês × Período do Dia",
+    subtitle = "Análise de sazonalidade mensal e padrões diários",
+    x = "Mês",
+    y = "Valor RSSI",
+    fill = "Período"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    legend.position = "bottom"
+  )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+dados_ts <- dados %>%
+  as_tsibble(index = rdtimestamp)
 dados_ts <- dados %>%
   as_tsibble(index = rdtimestamp) |> fill_gaps(.full = TRUE)
 
-# esse aqui é interessante 
+# esse aqui é interessante
 dados_ts %>%
   gg_subseries(y = rssi, period = "1d") +
   labs(
@@ -65,8 +193,6 @@ autoplot(decomp)
 
 monthplot(ts_data,choice = "seasonal")
 
-
-
 y <- msts(ts_data, seasonal.periods = c(24, 168))
 fit <- mstl(
   y,
@@ -78,7 +204,6 @@ fit <- mstl(
   outer = 1
 )
 autoplot(fit)
-
 
 
 ###  another tests----
