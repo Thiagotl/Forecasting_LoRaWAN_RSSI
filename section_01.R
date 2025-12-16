@@ -89,7 +89,7 @@ env_hour_test <- env_test |>
 
 # tinovi - soil
 tinovi01_RSSI_train <- sensors_hour_train |> 
-  dplyr::filter(nodeid == "tinovi-01") 
+  dplyr::filter(nodeid == "tinovi-01") |> select(-snr)
 
 tinovi02_RSSI_train <- sensors_hour_train |> 
   dplyr::filter(nodeid == "tinovi-02")

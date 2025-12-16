@@ -49,11 +49,11 @@ ggplot(dados, aes(x = week_day, y = rssi, fill = week_day)) + # mesma coisa do b
   geom_boxplot(alpha = 0.7) +
   scale_fill_viridis_d(option = "plasma") +
   labs(
-    title = "Distribuição de RSSI por Dia da Semana",
-    subtitle = "Dados coletados a cada 15 minutos durante um ano",
-    x = "Dia da Semana",
-    y = "Valor RSSI",
-    fill = "Dia"
+    title = "RSSI Distribution by Day of the Week",
+    #subtitle = "Dados coletados a cada 15 minutos durante um ano",
+    x = "Weekdays",
+    y = "RSSI Values - Tinovi 03",
+    fill = "Day"
   ) +
   theme_minimal() +
   theme(
@@ -66,10 +66,10 @@ ggplot(dados, aes(x = months, y = rssi, fill = months)) +
   geom_boxplot(alpha = 0.7) +
   scale_fill_viridis_d(option = "plasma") +
   labs(
-    title = "Distribuição de RSSI por Mês",
-    subtitle = "Análise de sazonalidade mensal",
-    x = "Mês",
-    y = " RSSI"
+    title = " RSSI Distribution by Month",
+    #subtitle = "Análise de sazonalidade mensal",
+    x = "Months",
+    y = " RSSI Values - Tinovi 03"
   ) +
   theme_minimal() +
   theme(
@@ -94,7 +94,7 @@ ggplot(dados, aes(x = months, y = rssi, fill = season)) +
   scale_fill_manual(values = c("lightblue", "lightgreen", "gold", "orange")) +
   labs(
     title = "Distribuição de RSSI por Mês com Destaque Sazonal",
-    subtitle = "Dados coletados na Itália (hemisfério norte)",
+    #subtitle = "Dados coletados na Itália (hemisfério norte)",
     x = "Mês",
     y = "Valor RSSI",
     fill = "Estação"
@@ -109,40 +109,17 @@ ggplot(dados, aes(x = week_day, y = rssi, fill = day_period)) +
   facet_wrap(~ day_period, ncol = 2) +
   scale_fill_viridis_d(option = "plasma") +
   labs(
-    title = "Distribuição de RSSI: Mês × Período do Dia",
-    subtitle = "Análise de sazonalidade mensal e padrões diários",
-    x = "Mês",
-    y = "Valor RSSI",
-    fill = "Período"
+    title = "RSSI Distribution: Month × Time of Day",
+    subtitle = "Monthly Seasonality Analysis and Daily Patterns",
+    x = "Weekdays",
+    y = "RSSI Values - Tinovi 3",
+    fill = ""
   ) +
   theme_minimal() +
   theme(
     axis.text.x = element_text(angle = 45, hjust = 1),
     legend.position = "bottom"
   )
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 dados_ts <- dados %>%
