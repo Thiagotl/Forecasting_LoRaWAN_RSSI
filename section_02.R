@@ -9,6 +9,8 @@ Sys.setlocale("LC_TIME", "English")
 
 #Sys.setlocale("LC_TIME", locale_original) # - Restaurar localização original (opcional)
 
+
+### Adjusts ----
 dados <- sensors_hour_train |>
   mutate(
     hours = hour(rdtimestamp ),          
@@ -39,9 +41,7 @@ dados <- sensors_hour_train |>
                  "Afternoon (12–17h)", "Evening (18–23h)")
     )
     
-  ) |> filter(nodeid == "tinovi-03")
-
-dados <- dados[-c(1), ]
+  ) |> filter(nodeid == "milesight-02") #milesight-0
 
 #dados <- tinovi01_RSSI_train[-c(1),]
 
@@ -52,7 +52,7 @@ ggplot(dados, aes(x = week_day, y = rssi, fill = week_day)) + # mesma coisa do b
     title = "RSSI Distribution by Day of the Week",
     #subtitle = "Dados coletados a cada 15 minutos durante um ano",
     x = "Weekdays",
-    y = "RSSI Values - Tinovi 03",
+    y = "RSSI Values - tinovi-01",
     fill = "Day"
   ) +
   theme_minimal() +
@@ -66,10 +66,10 @@ ggplot(dados, aes(x = months, y = rssi, fill = months)) +
   geom_boxplot(alpha = 0.7) +
   scale_fill_viridis_d(option = "plasma") +
   labs(
-    title = " RSSI Distribution by Month",
+    title = "RSSI Distribution by Month",
     #subtitle = "Análise de sazonalidade mensal",
     x = "Months",
-    y = " RSSI Values - Tinovi 03"
+    y = " RSSI Values - Milesight 02"
   ) +
   theme_minimal() +
   theme(
@@ -81,23 +81,23 @@ ggplot(dados, aes(x = months, y = rssi, fill = months)) +
 ggplot(dados, aes(x = factor(hours), y = rssi)) +
   geom_boxplot(fill = "lightgreen") +
   labs(
-    title = "Distribuição de RSSI por Hora do Dia",
-    x = "Hora do Dia (0-23)",
-    y = "Valor RSSI"
+    title = "RSSI Distribution by hour",
+    x = "Hours (0-23)",
+    y = "RSSI Values - "
   ) +
   theme_minimal()
 
 
 # Boxplot colorido por estação
-ggplot(dados, aes(x = months, y = rssi, fill = season)) +
+p8 <- ggplot(dados, aes(x = months, y = rssi, fill = season)) +
   geom_boxplot(alpha = 0.7) +
   scale_fill_manual(values = c("lightblue", "lightgreen", "gold", "orange")) +
   labs(
-    title = "Distribuição de RSSI por Mês com Destaque Sazonal",
+    title = "RSSI Distribution by Season",
     #subtitle = "Dados coletados na Itália (hemisfério norte)",
-    x = "Mês",
-    y = "Valor RSSI",
-    fill = "Estação"
+    x = "Months",
+    y = "RSSI Values - Milesight 02",
+    fill = "Season"
   ) +
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
@@ -121,7 +121,62 @@ ggplot(dados, aes(x = week_day, y = rssi, fill = day_period)) +
     legend.position = "bottom"
   )
 
+### Graphs ----
 
+
+library(cowplot)
+
+plots <- list(p1, p2, p3, p4, p5, p6, p7, p8)
+
+
+# estacao do ano
+leg <- get_legend(
+  plots[[1]] + theme(legend.position = "bottom")
+)
+
+# 2) remove a legenda de todos - estacao do ano
+plots_noleg <- lapply(plots, \(p) p + theme(legend.position = "none"))
+
+
+
+plots <- lapply(plots, \(p) p + theme(
+  plot.margin = margin(2, 2, 2, 2, "mm"),
+  plot.title  = element_text(size = 10),
+  axis.title  = element_text(size = 9),
+  axis.text   = element_text(size = 8),
+  legend.position = "none"
+))
+
+
+# 3) monta a grade 4x2 - estacao do ano
+
+grid <- plot_grid(plotlist = plots_noleg, ncol = 4)
+
+grid <- plot_grid(
+  plotlist = plots,
+  ncol = 4
+  )
+
+
+final <- plot_grid(
+  grid, leg,
+  ncol = 1,
+  rel_heights = c(1, 0.10)  # ajuste 0.08~0.15 se precisar
+)
+
+
+
+ggsave(
+  "rssi_season_plot.pdf",
+  final,
+  width  = 11.69,
+  height = 8.27,
+  units  = "in",
+  dpi    = 300
+)
+
+
+###
 dados_ts <- dados %>%
   as_tsibble(index = rdtimestamp)
 dados_ts <- dados %>%
