@@ -542,3 +542,62 @@ colnames(count) <- c(rownames(MAPE), "Overall")
 
 print(t(count))
 
+
+
+library(dplyr)
+library(purrr)
+library(psych)
+
+summ_corr_1sensor <- function(df, sensor_name) {
+  df2 <- df %>%
+    select(rssi, airtemp, airhum) %>%
+    mutate(across(everything(), as.numeric))
+  
+  ct <- psych::corr.test(df2, use = "pairwise", adjust = "holm")
+  
+  r <- ct$r
+  p <- ct$p
+  n <- ct$n
+  
+  n_pair <- function(a, b) {
+    if (is.matrix(n)) return(n[a, b])
+    as.numeric(n[1])  # quando vem escalar/vetor
+  }
+  
+  tibble(
+    sensor = sensor_name,
+    
+    r_rssi_airtemp = r["rssi","airtemp"],
+    p_rssi_airtemp = p["rssi","airtemp"],
+    n_rssi_airtemp = n_pair("rssi","airtemp"),
+    
+    r_rssi_airhum  = r["rssi","airhum"],
+    p_rssi_airhum  = p["rssi","airhum"],
+    n_rssi_airhum  = n_pair("rssi","airhum"),
+    
+    r_airtemp_airhum = r["airtemp","airhum"],
+    p_airtemp_airhum = p["airtemp","airhum"],
+    n_airtemp_airhum = n_pair("airtemp","airhum")
+  )
+}
+
+corr_within_sensors <- imap_dfr(train_list, summ_corr_1sensor)
+corr_within_sensors
+
+
+library(tidyr)
+
+rssi_wide <- train_list |>
+  imap(\(df, sensor) df |> select(rdtimestamp, rssi) |> rename(!!sensor := rssi)) |>
+  reduce(full_join, by = "rdtimestamp") |>
+  arrange(rdtimestamp)
+
+ct_rssi <- psych::corr.test(
+  rssi_wide |> select(-rdtimestamp),
+  use = "pairwise",
+  adjust = "holm"
+)
+
+# matriz de correlação entre sensores
+ct_rssi$r
+

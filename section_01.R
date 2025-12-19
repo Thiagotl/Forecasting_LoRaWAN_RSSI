@@ -428,9 +428,14 @@ for(i in 2:8){
   )
   result<-abind::abind(result,r,along = 1)
 }
-print(result)
+print(result, digits = 4)
+
+result_df <- as.data.frame(result) |> round(digits = 4)
 
 
+kable(result_df, "latex") %>%
+  kable_styling() %>%
+  save_kable("tabela.tex")
 
 count<-apply(cbind(apply(result01[1:3,], 1, rank)==1,
                    COR=rank(result01[4,])==4),1,sum)

@@ -41,7 +41,7 @@ dados <- sensors_hour_train |>
                  "Afternoon (12–17h)", "Evening (18–23h)")
     )
     
-  ) |> filter(nodeid == "milesight-02") #milesight-0
+  ) |> filter(nodeid == "tinovi-06") #milesight-0
 
 #dados <- tinovi01_RSSI_train[-c(1),]
 
@@ -78,18 +78,18 @@ ggplot(dados, aes(x = months, y = rssi, fill = months)) +
   )
 
 
-ggplot(dados, aes(x = factor(hours), y = rssi)) +
+p6 <- ggplot(dados, aes(x = factor(hours), y = rssi)) +
   geom_boxplot(fill = "lightgreen") +
   labs(
     title = "RSSI Distribution by hour",
     x = "Hours (0-23)",
-    y = "RSSI Values - "
+    y = "RSSI Values - Tinovi 06"
   ) +
   theme_minimal()
 
 
 # Boxplot colorido por estação
-p8 <- ggplot(dados, aes(x = months, y = rssi, fill = season)) +
+ggplot(dados, aes(x = months, y = rssi, fill = season)) +
   geom_boxplot(alpha = 0.7) +
   scale_fill_manual(values = c("lightblue", "lightgreen", "gold", "orange")) +
   labs(
@@ -167,8 +167,8 @@ final <- plot_grid(
 
 
 ggsave(
-  "rssi_season_plot.pdf",
-  final,
+  "rssi_hours_plot.pdf",
+  grid,
   width  = 11.69,
   height = 8.27,
   units  = "in",
