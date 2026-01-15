@@ -41,7 +41,7 @@ dados <- sensors_hour_train |>
                  "Afternoon (12–17h)", "Evening (18–23h)")
     )
     
-  ) |> filter(nodeid == "tinovi-06") #milesight-0
+  ) |> filter(nodeid == "milesight-02") #milesight-0
 
 #dados <- tinovi01_RSSI_train[-c(1),]
 
@@ -78,7 +78,7 @@ ggplot(dados, aes(x = months, y = rssi, fill = months)) +
   )
 
 
-p6 <- ggplot(dados, aes(x = factor(hours), y = rssi)) +
+p <- ggplot(dados, aes(x = factor(hours), y = rssi)) +
   geom_boxplot(fill = "lightgreen") +
   labs(
     title = "RSSI Distribution by hour",
@@ -104,15 +104,15 @@ ggplot(dados, aes(x = months, y = rssi, fill = season)) +
 
 
 # Boxplot facetado muito bommmmmmm
-ggplot(dados, aes(x = week_day, y = rssi, fill = day_period)) +
+p8 <- ggplot(dados, aes(x = months, y = rssi, fill = day_period)) +
   geom_boxplot(alpha = 0.7) +
   facet_wrap(~ day_period, ncol = 2) +
   scale_fill_viridis_d(option = "plasma") +
   labs(
-    title = "RSSI Distribution: Month × Time of Day",
-    subtitle = "Monthly Seasonality Analysis and Daily Patterns",
-    x = "Weekdays",
-    y = "RSSI Values - Tinovi 3",
+    #title = "RSSI Distribution: Month × Time of Day",
+    #subtitle = "Monthly Seasonality Analysis and Daily Patterns",
+    x = "Months",
+    y = "RSSI Values - Milesight 02",
     fill = ""
   ) +
   theme_minimal() +
@@ -126,7 +126,8 @@ ggplot(dados, aes(x = week_day, y = rssi, fill = day_period)) +
 
 library(cowplot)
 
-plots <- list(p1, p2, p3, p4, p5, p6, p7, p8)
+plots <- list(p1, p2, p3, p4)
+plots2 <- list(p5, p6, p7, p8)
 
 
 # estacao do ano
@@ -139,9 +140,9 @@ plots_noleg <- lapply(plots, \(p) p + theme(legend.position = "none"))
 
 
 
-plots <- lapply(plots, \(p) p + theme(
+plots <- lapply(plots2, \(p) p + theme(
   plot.margin = margin(2, 2, 2, 2, "mm"),
-  plot.title  = element_text(size = 10),
+  plot.title  = element_text(size = 8),
   axis.title  = element_text(size = 9),
   axis.text   = element_text(size = 8),
   legend.position = "none"
@@ -150,11 +151,10 @@ plots <- lapply(plots, \(p) p + theme(
 
 # 3) monta a grade 4x2 - estacao do ano
 
-grid <- plot_grid(plotlist = plots_noleg, ncol = 4)
+grid <- plot_grid(plotlist = plots, ncol = 4)
 
 grid <- plot_grid(
-  plotlist = plots,
-  ncol = 4
+  plotlist = plots
   )
 
 
@@ -167,10 +167,10 @@ final <- plot_grid(
 
 
 ggsave(
-  "rssi_hours_plot.pdf",
+  "plots2_months.pdf",
   grid,
-  width  = 11.69,
-  height = 8.27,
+  width  = 10,
+  height = 12,
   units  = "in",
   dpi    = 300
 )
