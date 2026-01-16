@@ -14,11 +14,28 @@ library(lubridate)
 ### Training data set - Nodes and Environment ---- 
 
 # sensors
-sensors_train <- readr::read_delim("train_radio_values.csv", 
-                             delim = ",", escape_double = FALSE, trim_ws = TRUE) |> 
-  dplyr::mutate(rdtimestamp= as.POSIXct(rdtimestamp, tz = "GMT",
-                                      origin="1970-01-01 00:00:00"))
+sensors_train <- read_delim(
+  "train_radio_values.csv",
+  delim = ",",
+  escape_double = FALSE,
+  trim_ws = TRUE
+) |> 
+  mutate(
+    rdtimestamp = as.POSIXct(rdtimestamp, tz = "GMT", origin = "1970-01-01 00:00:00"),
+    #ts   = with_tz(rdtimestamp, "Europe/Rome"),   
+    ts = rdtimestamp,
+    mmdd = month(ts) * 100 + day(ts),
+    season = case_when(
+      mmdd >= 321  & mmdd < 621  ~ "Spring",  # 21/03 até 20/06
+      mmdd >= 621  & mmdd < 922  ~ "Summer",      # 21/06 até 21/09
+      mmdd >= 922  & mmdd < 1221 ~ "Autumn",     # 22/09 até 20/12
+      TRUE                      ~ "Winter"     # 21/12 até 20/03
+    ),
+    season = factor(season, levels = c("Spring","Summer","Autumn","Winter"))
+  ) |> 
+  select(-ts, -mmdd)
 
+# hour
 sensors_hour_train <- sensors_train |> 
   group_by(
     nodeid,
@@ -26,28 +43,64 @@ sensors_hour_train <- sensors_train |>
   ) |> 
   summarise(
     rssi = mean(rssi, na.rm = TRUE),
-    snr = mean(snr, na.rm = TRUE),
-    .groups = 'drop'
-  )
+    snr  = mean(snr,  na.rm = TRUE),
+    season = first(season),      # estação daquela hora (todas as linhas da hora caem na mesma estação)
+    .groups = "drop"
+  ) |>
+  mutate(season = factor(season, levels = c("Spring","Summer","Autumn","Winter"))) |>
+  # cria dummies e remove Spring (referência)
+  tidyr::pivot_wider(
+    names_from  = season,
+    values_from = season,
+    values_fill = 0,
+    values_fn   = length,
+    names_prefix = "dum_"
+  ) |>
+  select(-dum_Spring)
 
-#environment
-env_train <- readr::read_delim("train_env_values.csv", 
-                             delim = ",", escape_double = FALSE, trim_ws = TRUE) |> 
-  dplyr::mutate(rdtimestamp= as.POSIXct(rdtimestamp, tz = "GMT",
-                                        origin="1970-01-01 00:00:00"))
+# environment
 
+library(readr)
+library(dplyr)
+library(lubridate)
+
+env_train <- read_delim(
+  "train_env_values.csv",
+  delim = ",",
+  escape_double = FALSE,
+  trim_ws = TRUE
+) |> 
+  mutate(
+    rdtimestamp = as.POSIXct(rdtimestamp, tz = "GMT", origin = "1970-01-01 00:00:00"),
+    ts = rdtimestamp,
+    mmdd = month(ts) * 100 + day(ts),
+    season = case_when(
+      mmdd >= 321  & mmdd < 621  ~ "Spring",
+      mmdd >= 621  & mmdd < 922  ~ "Summer",
+      mmdd >= 922  & mmdd < 1221 ~ "Autumn",
+      TRUE                      ~ "Winter"
+    ),
+    season = factor(season, levels = c("Spring","Summer","Autumn","Winter"))
+  ) |> 
+  select(-ts, -mmdd)
 
 env_hour_train <- env_train |>
-  group_by(
-    rdtimestamp = floor_date(rdtimestamp, "hour") 
-  ) |> 
+  group_by(rdtimestamp = floor_date(rdtimestamp, "hour")) |>
   summarise(
-    soiltemp = mean(soiltemp, na.rm = T),
-    soilhum  = mean(soilhum, na.rm = T),
-    airtemp  = mean(airtemp, na.rm = T),
-    airhum   = mean(airhum, na.rm = T),
-    .groups = 'drop'
-  ) |> select(-c(soiltemp, soilhum))
+    airtemp  = mean(airtemp, na.rm = TRUE),
+    airhum   = mean(airhum,  na.rm = TRUE),
+    
+    # estação da hora
+    season = first(season),
+    
+    # dummies (Spring é referência)
+    dum_Summer = as.integer(first(season) == "Summer"),
+    dum_Autumn = as.integer(first(season) == "Autumn"),
+    dum_Winter = as.integer(first(season) == "Winter"),
+    
+    .groups = "drop"
+  )
+
 
 ### Testing data set - Nodes and Environment ---- 
 
