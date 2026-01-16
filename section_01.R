@@ -9,8 +9,6 @@ library(knitr)
 library(kableExtra)
 library(lubridate)
 
-
-
 ### Training data set - Nodes and Environment ---- 
 
 # sensors
@@ -60,10 +58,6 @@ sensors_hour_train <- sensors_train |>
 
 # environment
 
-library(readr)
-library(dplyr)
-library(lubridate)
-
 env_train <- read_delim(
   "train_env_values.csv",
   delim = ",",
@@ -101,13 +95,30 @@ env_hour_train <- env_train |>
     .groups = "drop"
   )
 
+library(readr)
+library(dplyr)
+library(lubridate)
 
 ### Testing data set - Nodes and Environment ---- 
 
-sensors_test <- readr::read_delim("test_radio_vals_after.csv", 
-                                   delim = ",", escape_double = FALSE, trim_ws = TRUE) |> 
-  dplyr::mutate(rdtimestamp= as.POSIXct(rdtimestamp, tz = "GMT",
-                                        origin="1970-01-01 00:00:00"))
+sensors_test <- read_delim(
+  "test_radio_vals_after.csv",
+  delim = ",", escape_double = FALSE, trim_ws = TRUE
+) |> 
+  mutate(
+    rdtimestamp = as.POSIXct(rdtimestamp, tz = "GMT", origin = "1970-01-01 00:00:00"),
+    ts   = rdtimestamp,
+    mmdd = month(ts) * 100 + day(ts),
+    season = case_when(
+      mmdd >= 321  & mmdd < 621  ~ "Spring",
+      mmdd >= 621  & mmdd < 922  ~ "Summer",
+      mmdd >= 922  & mmdd < 1221 ~ "Autumn",
+      TRUE                      ~ "Winter"
+    ),
+    season = factor(season, levels = c("Spring","Summer","Autumn","Winter"))
+  ) |> 
+  select(-ts, -mmdd)
+
 sensors_hour_test <- sensors_test |> 
   group_by(
     nodeid,
@@ -115,28 +126,44 @@ sensors_hour_test <- sensors_test |>
   ) |> 
   summarise(
     rssi = mean(rssi, na.rm = TRUE),
-    snr = mean(snr, na.rm = TRUE),
-    .groups = 'drop'
+    snr  = mean(snr,  na.rm = TRUE),
+    season = first(season),
+    dum_Summer = as.integer(first(season) == "Summer"),
+    dum_Autumn = as.integer(first(season) == "Autumn"),
+    dum_Winter = as.integer(first(season) == "Winter"),
+    .groups = "drop"
   )
 
-
-env_test <- readr::read_delim("test_env_vals_after.csv", 
-                               delim = ",", escape_double = FALSE, trim_ws = TRUE) |> 
-  dplyr::mutate(rdtimestamp= as.POSIXct(rdtimestamp, tz = "GMT",
-                                        origin="1970-01-01 00:00:00"))
+env_test <- read_delim(
+  "test_env_vals_after.csv",
+  delim = ",", escape_double = FALSE, trim_ws = TRUE
+) |> 
+  mutate(
+    rdtimestamp = as.POSIXct(rdtimestamp, tz = "GMT", origin = "1970-01-01 00:00:00"),
+    ts   = rdtimestamp,
+    mmdd = month(ts) * 100 + day(ts),
+    season = case_when(
+      mmdd >= 321  & mmdd < 621  ~ "Spring",
+      mmdd >= 621  & mmdd < 922  ~ "Summer",
+      mmdd >= 922  & mmdd < 1221 ~ "Autumn",
+      TRUE                      ~ "Winter"
+    ),
+    season = factor(season, levels = c("Spring","Summer","Autumn","Winter"))
+  ) |> 
+  select(-ts, -mmdd)
 
 env_hour_test <- env_test |>
-  group_by(
-    rdtimestamp = floor_date(rdtimestamp, "hour") 
-  ) |> 
+  group_by(rdtimestamp = floor_date(rdtimestamp, "hour")) |>
   summarise(
-    soiltemp = mean(soiltemp, na.rm = T),
-    soilhum  = mean(soilhum, na.rm = T),
-    airtemp  = mean(airtemp, na.rm = T),
-    airhum   = mean(airhum, na.rm = T),
-    .groups = 'drop'
-  ) |> select(-c(soiltemp, soilhum))
-  
+    airtemp  = mean(airtemp, na.rm = TRUE),
+    airhum   = mean(airhum,  na.rm = TRUE),
+    season = first(season),
+    dum_Summer = as.integer(first(season) == "Summer"),
+    dum_Autumn = as.integer(first(season) == "Autumn"),
+    dum_Winter = as.integer(first(season) == "Winter"),
+    .groups = "drop"
+  )
+
 
 ### Select the RSSI's values - Training Set ----
 
