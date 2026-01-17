@@ -12,49 +12,18 @@ library(lubridate)
 ### Training data set - Nodes and Environment ---- 
 
 # sensors
-sensors_train <- read_delim(
-  "train_radio_values.csv",
-  delim = ",",
-  escape_double = FALSE,
-  trim_ws = TRUE
-) |> 
-  mutate(
-    rdtimestamp = as.POSIXct(rdtimestamp, tz = "GMT", origin = "1970-01-01 00:00:00"),
-    #ts   = with_tz(rdtimestamp, "Europe/Rome"),   
-    ts = rdtimestamp,
-    mmdd = month(ts) * 100 + day(ts),
-    season = case_when(
-      mmdd >= 321  & mmdd < 621  ~ "Spring",  # 21/03 até 20/06
-      mmdd >= 621  & mmdd < 922  ~ "Summer",      # 21/06 até 21/09
-      mmdd >= 922  & mmdd < 1221 ~ "Autumn",     # 22/09 até 20/12
-      TRUE                      ~ "Winter"     # 21/12 até 20/03
-    ),
-    season = factor(season, levels = c("Spring","Summer","Autumn","Winter"))
-  ) |> 
-  select(-ts, -mmdd)
+sensors_train <- readr::read_delim("train_radio_values.csv", 
+                                   delim = ",", 
+                                   escape_double = FALSE, 
+                                   trim_ws = TRUE) |> 
+  dplyr::mutate(rdtimestamp= as.POSIXct(rdtimestamp, tz = "GMT", origin="1970-01-01 00:00:00"))
 
 # hour
 sensors_hour_train <- sensors_train |> 
-  group_by(
-    nodeid,
-    rdtimestamp = floor_date(rdtimestamp, "hour")
-  ) |> 
-  summarise(
-    rssi = mean(rssi, na.rm = TRUE),
-    snr  = mean(snr,  na.rm = TRUE),
-    season = first(season),      # estação daquela hora (todas as linhas da hora caem na mesma estação)
-    .groups = "drop"
-  ) |>
-  mutate(season = factor(season, levels = c("Spring","Summer","Autumn","Winter"))) |>
-  # cria dummies e remove Spring (referência)
-  tidyr::pivot_wider(
-    names_from  = season,
-    values_from = season,
-    values_fill = 0,
-    values_fn   = length,
-    names_prefix = "dum_"
-  ) |>
-  select(-dum_Spring)
+  group_by( nodeid, rdtimestamp = floor_date(rdtimestamp, "hour") ) |> 
+  summarise( rssi = mean(rssi, na.rm = TRUE), 
+             snr = mean(snr, na.rm = TRUE), 
+             .groups = 'drop' ) |> select(-snr)
 
 # environment
 
@@ -95,44 +64,17 @@ env_hour_train <- env_train |>
     .groups = "drop"
   )
 
-library(readr)
-library(dplyr)
-library(lubridate)
 
 ### Testing data set - Nodes and Environment ---- 
 
-sensors_test <- read_delim(
-  "test_radio_vals_after.csv",
-  delim = ",", escape_double = FALSE, trim_ws = TRUE
-) |> 
-  mutate(
-    rdtimestamp = as.POSIXct(rdtimestamp, tz = "GMT", origin = "1970-01-01 00:00:00"),
-    ts   = rdtimestamp,
-    mmdd = month(ts) * 100 + day(ts),
-    season = case_when(
-      mmdd >= 321  & mmdd < 621  ~ "Spring",
-      mmdd >= 621  & mmdd < 922  ~ "Summer",
-      mmdd >= 922  & mmdd < 1221 ~ "Autumn",
-      TRUE                      ~ "Winter"
-    ),
-    season = factor(season, levels = c("Spring","Summer","Autumn","Winter"))
-  ) |> 
-  select(-ts, -mmdd)
+sensors_test <- readr::read_delim("test_radio_vals_after.csv", delim = ",", escape_double = FALSE, trim_ws = TRUE) |> 
+  dplyr::mutate(rdtimestamp= as.POSIXct(rdtimestamp, tz = "GMT", origin="1970-01-01 00:00:00"))
 
 sensors_hour_test <- sensors_test |> 
-  group_by(
-    nodeid,
-    rdtimestamp = floor_date(rdtimestamp, "hour")
-  ) |> 
-  summarise(
-    rssi = mean(rssi, na.rm = TRUE),
-    snr  = mean(snr,  na.rm = TRUE),
-    season = first(season),
-    dum_Summer = as.integer(first(season) == "Summer"),
-    dum_Autumn = as.integer(first(season) == "Autumn"),
-    dum_Winter = as.integer(first(season) == "Winter"),
-    .groups = "drop"
-  )
+  group_by( nodeid, rdtimestamp = floor_date(rdtimestamp, "hour") ) |> 
+  summarise( rssi = mean(rssi, na.rm = TRUE), 
+             snr = mean(snr, na.rm = TRUE), 
+             .groups = 'drop' ) |>  select(-snr)
 
 env_test <- read_delim(
   "test_env_vals_after.csv",
@@ -169,61 +111,60 @@ env_hour_test <- env_test |>
 
 # tinovi - soil
 tinovi01_RSSI_train <- sensors_hour_train |> 
-  dplyr::filter(nodeid == "tinovi-01") |> select(-snr)
+  dplyr::filter(nodeid == "tinovi-01") 
 
 tinovi02_RSSI_train <- sensors_hour_train |> 
-  dplyr::filter(nodeid == "tinovi-02") |> select(-snr)
+  dplyr::filter(nodeid == "tinovi-02") 
 
 tinovi03_RSSI_train <- sensors_hour_train |> 
-  dplyr::filter(nodeid == "tinovi-03") |> select(-snr)
+  dplyr::filter(nodeid == "tinovi-03") 
 
 tinovi04_RSSI_train <- sensors_hour_train |>
-  dplyr::filter(nodeid == "tinovi-04") |> select(-snr)
+  dplyr::filter(nodeid == "tinovi-04") 
 
 tinovi05_RSSI_train <- sensors_hour_train |> 
-  dplyr::filter(nodeid == "tinovi-05") |> select(-snr)
+  dplyr::filter(nodeid == "tinovi-05") 
 
 tinovi06_RSSI_train <- sensors_hour_train |> 
-  dplyr::filter(nodeid == "tinovi-06") |> select(-snr)
+  dplyr::filter(nodeid == "tinovi-06") 
 
 # milesight - air
 
 milesight01_RSSI_train <- sensors_hour_train |> 
-  dplyr::filter(nodeid == "milesight-01") |> select(-snr)
+  dplyr::filter(nodeid == "milesight-01") 
 
 milesight02_RSSI_train <- sensors_hour_train |> 
-  dplyr::filter(nodeid == "milesight-02") |> select(-snr)
+  dplyr::filter(nodeid == "milesight-02") 
 
 
 ### Select the RSSI's values - testing ----
 
 # tinovi - soil
 tinovi01_RSSI_test <- sensors_hour_test |>
-  dplyr::filter(nodeid == "tinovi-01") |> select(-snr)
+  dplyr::filter(nodeid == "tinovi-01") 
 
 tinovi02_RSSI_test <- sensors_hour_test |>
-  dplyr::filter(nodeid == "tinovi-02") |> select(-snr)
+  dplyr::filter(nodeid == "tinovi-02") 
 
 tinovi03_RSSI_test <- sensors_hour_test |>
-  dplyr::filter(nodeid == "tinovi-03") |> select(-snr)
+  dplyr::filter(nodeid == "tinovi-03") 
 
 tinovi04_RSSI_test <- sensors_hour_test |>
-  dplyr::filter(nodeid == "tinovi-04") |> select(-snr)
+  dplyr::filter(nodeid == "tinovi-04") 
 
 tinovi05_RSSI_test <- sensors_hour_test|>
-  dplyr::filter(nodeid == "tinovi-05") |> select(-snr)
+  dplyr::filter(nodeid == "tinovi-05") 
 
 tinovi06_RSSI_test <- sensors_hour_test|>
-  dplyr::filter(nodeid == "tinovi-06") |> select(-snr)
+  dplyr::filter(nodeid == "tinovi-06") 
 
 # milesight - air
 
 milesight01_RSSI_test <- sensors_hour_test |>
-  dplyr::filter(nodeid == "milesight-01") |> select(-snr)
+  dplyr::filter(nodeid == "milesight-01") 
 
 milesight02_RSSI_test <- sensors_hour_test |>
-  dplyr::filter(nodeid == "milesight-02") |> select(-snr)
-
+  dplyr::filter(nodeid == "milesight-02") 
 
 
 summary(milesight02_RSSI_test[3])
