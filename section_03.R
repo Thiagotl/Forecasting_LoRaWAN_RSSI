@@ -8,19 +8,26 @@ sensors <- names(rssi_train_list)
 
 order_arima <- matrix(NA, m, 3)
 
-MAE <- MAPE <- RMSE <- COR <- matrix(NA, m, 3)
+MAE <- MAPE <- RMSE <- COR <- matrix(NA, m, 4)
 colnames(MAE) <- colnames(MAPE) <- colnames(RMSE) <- colnames(COR) <-
   c("ARIMA-COV","ARIMA-COV*","ARIMA-COV*","ARIMA")
 
-rownames(order_arima) <- rownames(MAE) <- rownames(MAPE) <- rownames(RMSE) <- rownames(COR) <- sensors
+rownames(order_arima) <- rownames(MAE) <- 
+  rownames(MAPE) <- rownames(RMSE) <- rownames(COR) <- sensors
 
-# deixei 4 colunas pra manter o “layout” do seu output, embora agora só existam 2 covariáveis (T, RH)
-Xsig   <- matrix("", m, 2)
-values <- matrix(NA, m, 2)
-sinal  <- matrix(NA, m, 2)
-rownames(Xsig) <- sensors
 
-#coeffs <- matrix(0, m, 6)  # (não é usado no trecho; mantido pra preservar estrutura)
+cov_names <- c("T","RH","dum_Summer","dum_Autumn","dum_Winter")
+p_cov <- length(cov_names)
+
+Xsig   <- matrix("", m, p_cov)
+values <- matrix(NA, m, p_cov)
+sinal  <- matrix(NA, m, p_cov)
+#rownames(Xsig) <- sensors
+
+rownames(Xsig) <- rownames(values) <- rownames(sinal) <- sensors
+colnames(Xsig) <- colnames(values) <- colnames(sinal) <- cov_names
+
+#coeffs <- matrix(0, m, 6)  
 
 for (i in seq_along(sensors)) {
   
@@ -29,12 +36,30 @@ for (i in seq_along(sensors)) {
   
   RSSI <- df_tr$rssi
   
-  # covariáveis disponíveis nos seus data sets
-  X     <- cbind(df_tr$airtemp, df_tr$airhum)
-  Xtest <- cbind(df_te$airtemp, df_te$airhum)
+  # covariáveis 
+  #X     <- cbind(df_tr$airtemp, df_tr$airhum)
+  #Xtest <- cbind(df_te$airtemp, df_te$airhum)
   
   #Xchoosed  <- X[, 1]
   #Xchoosedt <- Xtest[, 1]
+  
+  X <- cbind(
+    df_tr$airtemp,
+    df_tr$airhum,
+    df_tr$dum_Summer,
+    df_tr$dum_Autumn,
+    df_tr$dum_Winter
+  )
+  
+  Xtest <- cbind(
+    df_te$airtemp,
+    df_te$airhum,
+    df_te$dum_Summer,
+    df_te$dum_Autumn,
+    df_te$dum_Winter
+  )
+  
+  colnames(X) <- colnames(Xtest) <- cov_names
   
   # fitting the algorithms
   a01 <- assign(paste0("arimax0", i),
@@ -43,9 +68,12 @@ for (i in seq_along(sensors)) {
   # seleção por significância dos coeficientes do xreg (últimos k coeficientes)
   k <- ncol(X)
   pvals <- coeftest(a01)[, 4]
-  tcoef <- pvals[(length(a01$coef) - k + 1):length(a01$coef)] < 0.05
+  #tcoef <- pvals[(length(a01$coef) - k + 1):length(a01$coef)] < 0.05
   
-  # (opcional, mas evita quebrar quando nenhuma covariável é significativa)
+  p_xreg <- pvals[(length(a01$coef) - k + 1):length(a01$coef)]
+  tcoef  <- p_xreg < 0.05
+  
+  # evita quebrar quando nenhuma covariável é significativa
   if (sum(tcoef) == 0) tcoef[1] <- TRUE  # comente esta linha se você preferir “sem COV*”
   
   Xnew  <- X[, tcoef, drop = FALSE]
@@ -53,12 +81,22 @@ for (i in seq_along(sensors)) {
   
   order_arima[i, ] <- arimaorder(a01)
   
-  Xsig[i, ] <- c(c("T", "RH")[tcoef], rep("", 2 - sum(tcoef)))
+  #Xsig[i, ] <- c(c("T", "RH")[tcoef], rep("", 2 - sum(tcoef)))
   
-  sign_vec <- (coef(a01) < 0)[(length(a01$coef) - k + 1):length(a01$coef)]
-  val_vec  <- (coef(a01))[(length(a01$coef) - k + 1):length(a01$coef)]
-  sinal[i, ]  <- c(sign_vec, rep(NA, 2 - length(sign_vec)))
-  values[i, ] <- c(val_vec,  rep(NA, 2 - length(val_vec)))
+  Xsig[i, ] <- ifelse(tcoef, cov_names, "") # variaveis significativas
+  
+  #sign_vec <- (coef(a01) < 0)[(length(a01$coef) - k + 1):length(a01$coef)]
+  #val_vec  <- (coef(a01))[(length(a01$coef) - k + 1):length(a01$coef)]
+  #sinal[i, ]  <- c(sign_vec, rep(NA, 2 - length(sign_vec)))
+  #values[i, ] <- c(val_vec,  rep(NA, 2 - length(val_vec)))
+  
+  xreg_coef   <- coef(a01)[(length(a01$coef) - k + 1):length(a01$coef)]
+  values[i, ] <- xreg_coef
+  sinal[i, ]  <- xreg_coef < 0
+  
+  idx_best  <- which.min(p_xreg)
+  Xchoosed  <- X[, idx_best]
+  Xchoosedt <- Xtest[, idx_best]
   
   a02 <- Arima(RSSI, arimaorder(a01), xreg = Xnew) # Significativo
   
