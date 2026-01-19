@@ -287,6 +287,8 @@ rssi_test_list <- list(
 # triangular_corr_table(milesight02_RSSI, "Correlation matrix - Milesight 02")
 
 
+
+
 ### Training data set - Nodes and Environment ---- 
 
 # sensors
@@ -306,19 +308,24 @@ sensors_day_train <- sensors_train |>
 #environment
 
 env_day_train <- env_train |>
-  group_by(
-    rdtimestamp = floor_date(rdtimestamp, "day") 
-  ) |> 
+  group_by(rdtimestamp = floor_date(rdtimestamp, "day")) |>
   summarise(
-    soiltemp = mean(soiltemp, na.rm = T),
-    soilhum  = mean(soilhum, na.rm = T),
-    airtemp  = mean(airtemp, na.rm = T),
-    airhum   = mean(airhum, na.rm = T),
-    .groups = 'drop'
-  ) |> select(-c(soiltemp, soilhum))
+    airtemp  = mean(airtemp, na.rm = TRUE),
+    airhum   = mean(airhum,  na.rm = TRUE),
+    
+    # estação da hora
+    season = first(season),
+    
+    # dummies (Spring é referência)
+    dum_Summer = as.integer(first(season) == "Summer"),
+    dum_Autumn = as.integer(first(season) == "Autumn"),
+    dum_Winter = as.integer(first(season) == "Winter"),
+    
+    .groups = "drop"
+  )
+
 
 ### Testing data set - Nodes and Environment ---- 
-
 
 sensors_day_test <- sensors_test |> 
   group_by(
@@ -333,17 +340,21 @@ sensors_day_test <- sensors_test |>
 
 
 env_day_test <- env_test |>
-  group_by(
-    rdtimestamp = floor_date(rdtimestamp, "day") 
-  ) |> 
+  group_by(rdtimestamp = floor_date(rdtimestamp, "day")) |>
   summarise(
-    soiltemp = mean(soiltemp, na.rm = T),
-    soilhum  = mean(soilhum, na.rm = T),
-    airtemp  = mean(airtemp, na.rm = T),
-    airhum   = mean(airhum, na.rm = T),
-    .groups = 'drop'
-  ) |> select(-c(soiltemp, soilhum))
-
+    airtemp  = mean(airtemp, na.rm = TRUE),
+    airhum   = mean(airhum,  na.rm = TRUE),
+    
+    # estação da hora
+    season = first(season),
+    
+    # dummies (Spring é referência)
+    dum_Summer = as.integer(first(season) == "Summer"),
+    dum_Autumn = as.integer(first(season) == "Autumn"),
+    dum_Winter = as.integer(first(season) == "Winter"),
+    
+    .groups = "drop"
+  )
 
 ### Select the RSSI's values - Training Set (Day)----
 
@@ -405,7 +416,174 @@ milesight02_RSSI_test_d <- sensors_day_test |>
   dplyr::filter(nodeid == "milesight-02") |> select(-snr)
 
 
+## Joins training sets ----
 
+tinovi01_RSSI_train_d <- inner_join(tinovi01_RSSI_train_d, env_day_train, by = "rdtimestamp") 
+tinovi02_RSSI_train_d <- inner_join(tinovi02_RSSI_train_d, env_day_train, by = "rdtimestamp") 
+tinovi03_RSSI_train_d <- inner_join(tinovi03_RSSI_train_d, env_day_train, by = "rdtimestamp") 
+tinovi04_RSSI_train_d <- inner_join(tinovi04_RSSI_train_d, env_day_train, by = "rdtimestamp") 
+tinovi05_RSSI_train_d <- inner_join(tinovi05_RSSI_train_d, env_day_train, by = "rdtimestamp") 
+tinovi06_RSSI_train_d <- inner_join(tinovi06_RSSI_train_d, env_day_train, by = "rdtimestamp") 
+milesight01_RSSI_train_d <- inner_join(milesight01_RSSI_train_d, env_day_train, by = "rdtimestamp")
+milesight02_RSSI_train_d <- inner_join(milesight02_RSSI_train_d, env_day_train, by = "rdtimestamp")
+
+
+rssi_train_list_day <- list(
+  Tinovi01    = tinovi01_RSSI_train_d,
+  Tinovi02    = tinovi02_RSSI_train_d,
+  Tinovi03    = tinovi03_RSSI_train_d,
+  Tinovi04    = tinovi04_RSSI_train_d,
+  Tinovi05    = tinovi05_RSSI_train_d,
+  Tinovi06    = tinovi06_RSSI_train_d,
+  Milesight01 = milesight01_RSSI_train_d,
+  Milesight02 = milesight02_RSSI_train_d
+)
+
+
+## Joins testing sets ----
+
+tinovi01_RSSI_test_d <- inner_join(tinovi01_RSSI_test_d, env_day_test, by = "rdtimestamp") 
+tinovi02_RSSI_test_d <- inner_join(tinovi02_RSSI_test_d, env_day_test, by = "rdtimestamp") 
+tinovi03_RSSI_test_d <- inner_join(tinovi03_RSSI_test_d, env_day_test, by = "rdtimestamp") 
+tinovi04_RSSI_test_d <- inner_join(tinovi04_RSSI_test_d, env_day_test, by = "rdtimestamp") 
+tinovi05_RSSI_test_d <- inner_join(tinovi05_RSSI_test_d, env_day_test, by = "rdtimestamp") 
+tinovi06_RSSI_test_d <- inner_join(tinovi06_RSSI_test_d, env_day_test, by = "rdtimestamp") 
+milesight01_RSSI_test_d <- inner_join(milesight01_RSSI_test_d, env_day_test, by = "rdtimestamp")
+milesight02_RSSI_test_d <- inner_join(milesight02_RSSI_test_d, env_day_test, by = "rdtimestamp")
+
+
+rssi_test_list_day <- list(
+  Tinovi01    = tinovi01_RSSI_test_d,
+  Tinovi02    = tinovi02_RSSI_test_d,
+  Tinovi03    = tinovi03_RSSI_test_d,
+  Tinovi04    = tinovi04_RSSI_test_d,
+  Tinovi05    = tinovi05_RSSI_test_d,
+  Tinovi06    = tinovi06_RSSI_test_d,
+  Milesight01 = milesight01_RSSI_test_d,
+  Milesight02 = milesight02_RSSI_test_d
+)
+
+
+
+# sensors
+## Week
+
+sensors_week_train <- sensors_train |> 
+  group_by(
+    nodeid,
+    rdtimestamp = floor_date(rdtimestamp, "week")
+  ) |>
+  summarise(
+    rssi = mean(rssi, na.rm = TRUE),
+    snr  = mean(snr,  na.rm = TRUE),
+    .groups = "drop"
+  )
+
+#environment
+
+env_week_train <- env_train |>
+  group_by(rdtimestamp = floor_date(rdtimestamp, "week")) |>
+  summarise(
+    airtemp  = mean(airtemp, na.rm = TRUE),
+    airhum   = mean(airhum,  na.rm = TRUE),
+    
+    # estação da hora
+    season = first(season),
+    
+    # dummies (Spring é referência)
+    dum_Summer = as.integer(first(season) == "Summer"),
+    dum_Autumn = as.integer(first(season) == "Autumn"),
+    dum_Winter = as.integer(first(season) == "Winter"),
+    
+    .groups = "drop"
+  )
+
+### Testing data set - Nodes and Environment ---- 
+
+
+sensors_week_test <- sensors_test |> 
+  group_by(
+    nodeid,
+    rdtimestamp = floor_date(rdtimestamp, "week")
+  ) |> 
+  summarise(
+    rssi = mean(rssi, na.rm = TRUE),
+    snr = mean(snr, na.rm = TRUE),
+    .groups = 'drop'
+  )
+
+
+env_week_test <- env_test |>
+  group_by(rdtimestamp = floor_date(rdtimestamp, "week")) |>
+  summarise(
+    airtemp  = mean(airtemp, na.rm = TRUE),
+    airhum   = mean(airhum,  na.rm = TRUE),
+    season = first(season),
+    dum_Summer = as.integer(first(season) == "Summer"),
+    dum_Autumn = as.integer(first(season) == "Autumn"),
+    dum_Winter = as.integer(first(season) == "Winter"),
+    .groups = "drop"
+  )
+
+
+### Select the RSSI's values - Training Set (Day)----
+
+# tinovi - soil
+tinovi01_RSSI_train_d <- sensors_day_train |> 
+  dplyr::filter(nodeid == "tinovi-01") |> select(-snr)
+
+tinovi02_RSSI_train_d <- sensors_day_train |> 
+  dplyr::filter(nodeid == "tinovi-02") |> select(-snr)
+
+tinovi03_RSSI_train_d <- sensors_day_train |> 
+  dplyr::filter(nodeid == "tinovi-03") |> select(-snr)
+
+tinovi04_RSSI_train_d <- sensors_day_train |>
+  dplyr::filter(nodeid == "tinovi-04") |> select(-snr)
+
+tinovi05_RSSI_train_d <- sensors_day_train |> 
+  dplyr::filter(nodeid == "tinovi-05") |> select(-snr)
+
+tinovi06_RSSI_train_d <- sensors_day_train |> 
+  dplyr::filter(nodeid == "tinovi-06") |> select(-snr)
+
+# milesight - air
+
+milesight01_RSSI_train_d <- sensors_day_train |> 
+  dplyr::filter(nodeid == "milesight-01") |> select(-snr)
+
+milesight02_RSSI_train_d <- sensors_day_train |> 
+  dplyr::filter(nodeid == "milesight-02") |> select(-snr)
+
+
+### Select the RSSI's values - Testing Set (day)----
+
+# tinovi - soil
+tinovi01_RSSI_test_d <- sensors_day_test |>
+  dplyr::filter(nodeid == "tinovi-01") |> select(-snr)
+
+tinovi02_RSSI_test_d <- sensors_day_test |>
+  dplyr::filter(nodeid == "tinovi-02") |> select(-snr)
+
+tinovi03_RSSI_test_d <- sensors_day_test |>
+  dplyr::filter(nodeid == "tinovi-03") |> select(-snr)
+
+tinovi04_RSSI_test_d <- sensors_day_test |>
+  dplyr::filter(nodeid == "tinovi-04") |> select(-snr)
+
+tinovi05_RSSI_test_d <- sensors_day_test|>
+  dplyr::filter(nodeid == "tinovi-05") |> select(-snr)
+
+tinovi06_RSSI_test_d <- sensors_day_test|>
+  dplyr::filter(nodeid == "tinovi-06") |> select(-snr)
+
+# milesight - air
+
+milesight01_RSSI_test_d <- sensors_day_test |>
+  dplyr::filter(nodeid == "milesight-01") |> select(-snr)
+
+milesight02_RSSI_test_d <- sensors_day_test |>
+  dplyr::filter(nodeid == "milesight-02") |> select(-snr)
 
 
 

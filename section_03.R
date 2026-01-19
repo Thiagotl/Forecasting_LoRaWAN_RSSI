@@ -31,8 +31,8 @@ colnames(Xsig) <- colnames(values) <- colnames(sinal) <- cov_names
 
 for (i in seq_along(sensors)) {
   
-  df_tr <- rssi_train_list[[i]]
-  df_te <- rssi_test_list[[i]]
+  df_tr <- rssi_train_list_day[[i]]
+  df_te <- rssi_test_list_day[[i]]
   
   RSSI <- df_tr$rssi
   
