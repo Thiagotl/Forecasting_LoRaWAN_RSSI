@@ -178,24 +178,42 @@ ggplot(stack(values), aes(x = ind, y = values)) +
 
 
 
-MAE_AUM<-(MAE[,4]-MAE[,1:3])/MAE[,4]
-M_AUM<-(MAPE[,4]-MAPE[,1:3])/MAPE[,4]
-RMSE_AUM<-(RMSE[,4]-RMSE[,1:3])/RMSE[,4]
-COR_AUM<-(COR[,1:3]-COR[,4])/COR[,4]
+MAE_AUM  <- (MAE[,4]  - MAE[,1:3])  / MAE[,4]
+M_AUM    <- (MAPE[,4] - MAPE[,1:3]) / MAPE[,4]
+RMSE_AUM <- (RMSE[,4] - RMSE[,1:3]) / RMSE[,4]
+COR_AUM  <- (COR[,1:3] - COR[,4])   / COR[,4]
 
 # organizing the table
-result<- cbind(result01,rbind(
-  MAE_AUM[1,],M_AUM[1,],RMSE_AUM[1,],COR_AUM[1,]
-)*100
-)
-for(i in 1:8){
-  r<-cbind(get(paste0("result0",i)),rbind(
-    MAE_AUM[i,],M_AUM[i,],RMSE_AUM[i,],COR_AUM[i,]
-  )*100
-  )
-  result<-abind::abind(result,r,along = 1)
+result <- cbind(result01, rbind(
+  MAE_AUM[1,], M_AUM[1,], RMSE_AUM[1,], COR_AUM[1,]
+) * 100)
+
+for (i in 2:m) {
+  r <- cbind(get(paste0("result0", i)), rbind(
+    MAE_AUM[i,], M_AUM[i,], RMSE_AUM[i,], COR_AUM[i,]
+  ) * 100)
+  
+  result <- abind::abind(result, r, along = 1)
 }
+
+
+
+metric_cols <- c("ARIMA-COV","ARIMA-COV*","ARIMA-COV**","ARIMA")
+aum_cols    <- paste0(metric_cols[1:3], "_AUM")
+colnames(result) <- c(metric_cols, aum_cols)
+
+measures <- rownames(result01)  # MAE, MAPE, RMSE, COR
+rownames(result) <- paste(
+  rep(sensors[1:m], each = length(measures)),
+  rep(measures, times = m),
+  sep = " | "
+)
+
 print(result, digits = 4)
+
+
+
+
 
 result_df <- as.data.frame(result) |> round(digits = 4)
 
