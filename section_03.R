@@ -3,8 +3,8 @@
 ## Fitting ARIMAX ##
 ####################
 
-m <- length(rssi_train_list)
-sensors <- names(rssi_train_list)
+m <- length(rssi_train_list_day)
+sensors <- names(rssi_train_list_day)
 
 order_arima <- matrix(NA, m, 3)
 
@@ -188,7 +188,7 @@ result<- cbind(result01,rbind(
   MAE_AUM[1,],M_AUM[1,],RMSE_AUM[1,],COR_AUM[1,]
 )*100
 )
-for(i in 2:8){
+for(i in 1:8){
   r<-cbind(get(paste0("result0",i)),rbind(
     MAE_AUM[i,],M_AUM[i,],RMSE_AUM[i,],COR_AUM[i,]
   )*100
