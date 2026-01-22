@@ -3,8 +3,8 @@
 ## Fitting ARIMAX ##
 ####################
 
-m <- length(rssi_train_list_day)
-sensors <- names(rssi_train_list_day)
+m <- length(rssi_train_list_week)
+sensors <- names(rssi_train_list_week)
 
 order_arima <- matrix(NA, m, 3)
 
@@ -31,8 +31,8 @@ colnames(Xsig) <- colnames(values) <- colnames(sinal) <- cov_names
 
 for (i in seq_along(sensors)) {
   
-  df_tr <- rssi_train_list_day[[i]]
-  df_te <- rssi_test_list_day[[i]]
+  df_tr <- rssi_train_list_week[[i]]
+  df_te <- rssi_test_list_week[[i]]
   
   RSSI <- df_tr$rssi
   
@@ -209,10 +209,7 @@ rownames(result) <- paste(
   sep = " | "
 )
 
-print(result, digits = 4)
-
-
-
+print(result, digits = 5)
 
 
 result_df <- as.data.frame(result) |> round(digits = 4)

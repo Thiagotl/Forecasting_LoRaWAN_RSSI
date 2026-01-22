@@ -530,65 +530,110 @@ env_week_test <- env_test |>
 ### Select the RSSI's values - Training Set (Day)----
 
 # tinovi - soil
-tinovi01_RSSI_train_d <- sensors_day_train |> 
+tinovi01_RSSI_train_w <- sensors_week_train |> 
   dplyr::filter(nodeid == "tinovi-01") |> select(-snr)
 
-tinovi02_RSSI_train_d <- sensors_day_train |> 
+tinovi02_RSSI_train_w <- sensors_week_train |> 
   dplyr::filter(nodeid == "tinovi-02") |> select(-snr)
 
-tinovi03_RSSI_train_d <- sensors_day_train |> 
+tinovi03_RSSI_train_w <- sensors_week_train |> 
   dplyr::filter(nodeid == "tinovi-03") |> select(-snr)
 
-tinovi04_RSSI_train_d <- sensors_day_train |>
+tinovi04_RSSI_train_w <- sensors_week_train |>
   dplyr::filter(nodeid == "tinovi-04") |> select(-snr)
 
-tinovi05_RSSI_train_d <- sensors_day_train |> 
+tinovi05_RSSI_train_w <- sensors_week_train |> 
   dplyr::filter(nodeid == "tinovi-05") |> select(-snr)
 
-tinovi06_RSSI_train_d <- sensors_day_train |> 
+tinovi06_RSSI_train_w <- sensors_week_train |> 
   dplyr::filter(nodeid == "tinovi-06") |> select(-snr)
 
 # milesight - air
 
-milesight01_RSSI_train_d <- sensors_day_train |> 
+milesight01_RSSI_train_w <- sensors_week_train |> 
   dplyr::filter(nodeid == "milesight-01") |> select(-snr)
 
-milesight02_RSSI_train_d <- sensors_day_train |> 
+milesight02_RSSI_train_w <- sensors_week_train |> 
   dplyr::filter(nodeid == "milesight-02") |> select(-snr)
 
 
 ### Select the RSSI's values - Testing Set (day)----
 
 # tinovi - soil
-tinovi01_RSSI_test_d <- sensors_day_test |>
+tinovi01_RSSI_test_w <- sensors_week_test |>
   dplyr::filter(nodeid == "tinovi-01") |> select(-snr)
 
-tinovi02_RSSI_test_d <- sensors_day_test |>
+tinovi02_RSSI_test_w <- sensors_week_test |>
   dplyr::filter(nodeid == "tinovi-02") |> select(-snr)
 
-tinovi03_RSSI_test_d <- sensors_day_test |>
+tinovi03_RSSI_test_w <- sensors_week_test |>
   dplyr::filter(nodeid == "tinovi-03") |> select(-snr)
 
-tinovi04_RSSI_test_d <- sensors_day_test |>
+tinovi04_RSSI_test_w <- sensors_week_test |>
   dplyr::filter(nodeid == "tinovi-04") |> select(-snr)
 
-tinovi05_RSSI_test_d <- sensors_day_test|>
+tinovi05_RSSI_test_w <- sensors_week_test|>
   dplyr::filter(nodeid == "tinovi-05") |> select(-snr)
 
-tinovi06_RSSI_test_d <- sensors_day_test|>
+tinovi06_RSSI_test_w <- sensors_week_test|>
   dplyr::filter(nodeid == "tinovi-06") |> select(-snr)
 
 # milesight - air
 
-milesight01_RSSI_test_d <- sensors_day_test |>
+milesight01_RSSI_test_w <- sensors_week_test |>
   dplyr::filter(nodeid == "milesight-01") |> select(-snr)
 
-milesight02_RSSI_test_d <- sensors_day_test |>
+milesight02_RSSI_test_w <- sensors_week_test |>
   dplyr::filter(nodeid == "milesight-02") |> select(-snr)
 
 
 
 
+## Joins training sets ----
 
+tinovi01_RSSI_train_w <- inner_join(tinovi01_RSSI_train_w, env_week_train, by = "rdtimestamp") 
+tinovi02_RSSI_train_w <- inner_join(tinovi02_RSSI_train_w, env_week_train, by = "rdtimestamp") 
+tinovi03_RSSI_train_w <- inner_join(tinovi03_RSSI_train_w, env_week_train, by = "rdtimestamp") 
+tinovi04_RSSI_train_w <- inner_join(tinovi04_RSSI_train_w, env_week_train, by = "rdtimestamp") 
+tinovi05_RSSI_train_w <- inner_join(tinovi05_RSSI_train_w, env_week_train, by = "rdtimestamp") 
+tinovi06_RSSI_train_w <- inner_join(tinovi06_RSSI_train_w, env_week_train, by = "rdtimestamp") 
+milesight01_RSSI_train_w <- inner_join(milesight01_RSSI_train_w, env_week_train, by = "rdtimestamp")
+milesight02_RSSI_train_w <- inner_join(milesight02_RSSI_train_w, env_week_train, by = "rdtimestamp")
+
+
+rssi_train_list_week <- list(
+  Tinovi01    = tinovi01_RSSI_train_w,
+  Tinovi02    = tinovi02_RSSI_train_w,
+  Tinovi03    = tinovi03_RSSI_train_w,
+  Tinovi04    = tinovi04_RSSI_train_w,
+  Tinovi05    = tinovi05_RSSI_train_w,
+  Tinovi06    = tinovi06_RSSI_train_w,
+  Milesight01 = milesight01_RSSI_train_w,
+  Milesight02 = milesight02_RSSI_train_w
+)
+
+
+## Joins testing sets ----
+
+tinovi01_RSSI_test_w <- inner_join(tinovi01_RSSI_test_w, env_week_test, by = "rdtimestamp") 
+tinovi02_RSSI_test_w <- inner_join(tinovi02_RSSI_test_w, env_week_test, by = "rdtimestamp") 
+tinovi03_RSSI_test_w <- inner_join(tinovi03_RSSI_test_w, env_week_test, by = "rdtimestamp") 
+tinovi04_RSSI_test_w <- inner_join(tinovi04_RSSI_test_w, env_week_test, by = "rdtimestamp") 
+tinovi05_RSSI_test_w <- inner_join(tinovi05_RSSI_test_w, env_week_test, by = "rdtimestamp") 
+tinovi06_RSSI_test_w <- inner_join(tinovi06_RSSI_test_w, env_week_test, by = "rdtimestamp") 
+milesight01_RSSI_test_w <- inner_join(milesight01_RSSI_test_w, env_week_test, by = "rdtimestamp")
+milesight02_RSSI_test_w <- inner_join(milesight02_RSSI_test_w, env_week_test, by = "rdtimestamp")
+
+
+rssi_test_list_week <- list(
+  Tinovi01    = tinovi01_RSSI_test_w,
+  Tinovi02    = tinovi02_RSSI_test_w,
+  Tinovi03    = tinovi03_RSSI_test_w,
+  Tinovi04    = tinovi04_RSSI_test_w,
+  Tinovi05    = tinovi05_RSSI_test_w,
+  Tinovi06    = tinovi06_RSSI_test_w,
+  Milesight01 = milesight01_RSSI_test_w,
+  Milesight02 = milesight02_RSSI_test_w
+)
 
 
