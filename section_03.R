@@ -3,18 +3,17 @@
 ## Fitting ARIMAX ##
 ####################
 
-m <- length(rssi_train_list_week)
-sensors <- names(rssi_train_list_week)
+m <- length(rssi_train_list_day)
+sensors <- names(rssi_train_list_day)
 
 order_arima <- matrix(NA, m, 3)
 
-MAE <- MAPE <- RMSE <- COR <- matrix(NA, m, 4)
+MAE <- MAPE <- RMSE <- COR <- matrix(NA, m, 5)
 colnames(MAE) <- colnames(MAPE) <- colnames(RMSE) <- colnames(COR) <-
-  c("ARIMA-COV","ARIMA-COV*","ARIMA-COV*","ARIMA")
+  c("ARIMA-COV","ARIMA-COV*","ARIMA-COV**","ARIMA","ARIMA-DUM")
 
-rownames(order_arima) <- rownames(MAE) <- 
+rownames(order_arima) <- rownames(MAE) <-
   rownames(MAPE) <- rownames(RMSE) <- rownames(COR) <- sensors
-
 
 cov_names <- c("T","RH","dum_Summer","dum_Autumn","dum_Winter")
 p_cov <- length(cov_names)
@@ -22,26 +21,16 @@ p_cov <- length(cov_names)
 Xsig   <- matrix("", m, p_cov)
 values <- matrix(NA, m, p_cov)
 sinal  <- matrix(NA, m, p_cov)
-#rownames(Xsig) <- sensors
 
 rownames(Xsig) <- rownames(values) <- rownames(sinal) <- sensors
 colnames(Xsig) <- colnames(values) <- colnames(sinal) <- cov_names
 
-#coeffs <- matrix(0, m, 6)  
-
 for (i in seq_along(sensors)) {
   
-  df_tr <- rssi_train_list_week[[i]]
-  df_te <- rssi_test_list_week[[i]]
+  df_tr <- rssi_train_list_day[[i]]
+  df_te <- rssi_test_list_day[[i]]
   
   RSSI <- df_tr$rssi
-  
-  # covariáveis 
-  #X     <- cbind(df_tr$airtemp, df_tr$airhum)
-  #Xtest <- cbind(df_te$airtemp, df_te$airhum)
-  
-  #Xchoosed  <- X[, 1]
-  #Xchoosedt <- Xtest[, 1]
   
   X <- cbind(
     df_tr$airtemp,
@@ -61,34 +50,23 @@ for (i in seq_along(sensors)) {
   
   colnames(X) <- colnames(Xtest) <- cov_names
   
-  # fitting the algorithms
-  a01 <- assign(paste0("arimax0", i),
-                auto.arima(RSSI, xreg = X, allowdrift = FALSE))
+  Xdum   <- X[, 3:5, drop = FALSE]
+  Xdum_t <- Xtest[, 3:5, drop = FALSE]
   
-  # seleção por significância dos coeficientes do xreg (últimos k coeficientes)
+  a01 <- auto.arima(RSSI, xreg = X, allowdrift = FALSE)
+  
   k <- ncol(X)
   pvals <- coeftest(a01)[, 4]
-  #tcoef <- pvals[(length(a01$coef) - k + 1):length(a01$coef)] < 0.05
-  
   p_xreg <- pvals[(length(a01$coef) - k + 1):length(a01$coef)]
   tcoef  <- p_xreg < 0.05
-  
-  # evita quebrar quando nenhuma covariável é significativa
-  if (sum(tcoef) == 0) tcoef[1] <- TRUE  # comente esta linha se você preferir “sem COV*”
+  if (sum(tcoef) == 0) tcoef[1] <- TRUE
   
   Xnew  <- X[, tcoef, drop = FALSE]
   Xnewt <- Xtest[, tcoef, drop = FALSE]
   
   order_arima[i, ] <- arimaorder(a01)
   
-  #Xsig[i, ] <- c(c("T", "RH")[tcoef], rep("", 2 - sum(tcoef)))
-  
-  Xsig[i, ] <- ifelse(tcoef, cov_names, "") # variaveis significativas
-  
-  #sign_vec <- (coef(a01) < 0)[(length(a01$coef) - k + 1):length(a01$coef)]
-  #val_vec  <- (coef(a01))[(length(a01$coef) - k + 1):length(a01$coef)]
-  #sinal[i, ]  <- c(sign_vec, rep(NA, 2 - length(sign_vec)))
-  #values[i, ] <- c(val_vec,  rep(NA, 2 - length(val_vec)))
+  Xsig[i, ] <- ifelse(tcoef, cov_names, "")
   
   xreg_coef   <- coef(a01)[(length(a01$coef) - k + 1):length(a01$coef)]
   values[i, ] <- xreg_coef
@@ -98,118 +76,100 @@ for (i in seq_along(sensors)) {
   Xchoosed  <- X[, idx_best]
   Xchoosedt <- Xtest[, idx_best]
   
-  a02 <- Arima(RSSI, arimaorder(a01), xreg = Xnew) # Significativo
-  
-  a03 <- Arima(RSSI, arimaorder(a01)) # ARIMA
-  
+  a02 <- Arima(RSSI, order = arimaorder(a01), xreg = Xnew)
+  a03 <- Arima(RSSI, order = arimaorder(a01))
   a04 <- Arima(RSSI, order = arimaorder(a01), xreg = Xchoosed)
+  a05 <- Arima(RSSI, order = arimaorder(a01), xreg = Xdum)
   
-  # forecasting (one-step-ahead)
   RSSI_test <- df_te$rssi
   
-  new1 <- assign(paste0("arima_cov0", i),
-                 Arima(RSSI_test, xreg = Xtest, model = a01))
-  
-  new2 <- assign(paste0("arima_covstar", i),
-                 Arima(RSSI_test, xreg = Xnewt, model = a02))
-  
-  new3 <- assign(paste0("arima_pred0", i),
-                 Arima(RSSI_test, model = a03))
-  
-  new4 <- assign(paste0("arima_cov2star0", i),
-                 Arima(RSSI_test, xreg = Xchoosedt, model = a04))
+  new1 <- Arima(RSSI_test, xreg = Xtest, model = a01)
+  new2 <- Arima(RSSI_test, xreg = Xnewt, model = a02)
+  new3 <- Arima(RSSI_test, model = a03)
+  new4 <- Arima(RSSI_test, xreg = Xchoosedt, model = a04)
+  new5 <- Arima(RSSI_test, xreg = Xdum_t, model = a05)
   
   MAPE[i, ] <- c(
-    forecast::accuracy(RSSI_test, new1$fitted)[5],
-    forecast::accuracy(RSSI_test, new2$fitted)[5],
-    forecast::accuracy(RSSI_test, new4$fitted)[5],
-    forecast::accuracy(RSSI_test, new3$fitted)[5]
+    forecast::accuracy(new1$fitted, RSSI_test)[5],
+    forecast::accuracy(new2$fitted, RSSI_test)[5],
+    forecast::accuracy(new4$fitted, RSSI_test)[5],
+    forecast::accuracy(new3$fitted, RSSI_test)[5],
+    forecast::accuracy(new5$fitted, RSSI_test)[5]
   )
   
   RMSE[i, ] <- c(
-    forecast::accuracy(RSSI_test, new1$fitted)[2],
-    forecast::accuracy(RSSI_test, new2$fitted)[2],
-    forecast::accuracy(RSSI_test, new4$fitted)[2],
-    forecast::accuracy(RSSI_test, new3$fitted)[2]
-  )
-  
-  COR[i, ] <- c(
-    cor(RSSI_test, new1$fitted),
-    cor(RSSI_test, new2$fitted),
-    cor(RSSI_test, new4$fitted),
-    cor(RSSI_test, new3$fitted)
+    forecast::accuracy(new1$fitted, RSSI_test)[2],
+    forecast::accuracy(new2$fitted, RSSI_test)[2],
+    forecast::accuracy(new4$fitted, RSSI_test)[2],
+    forecast::accuracy(new3$fitted, RSSI_test)[2],
+    forecast::accuracy(new5$fitted, RSSI_test)[2]
   )
   
   MAE[i, ] <- c(
-    forecast::accuracy(RSSI_test, new1$fitted)[3],
-    forecast::accuracy(RSSI_test, new2$fitted)[3],
-    forecast::accuracy(RSSI_test, new4$fitted)[3],
-    forecast::accuracy(RSSI_test, new3$fitted)[3]
+    forecast::accuracy(new1$fitted, RSSI_test)[3],
+    forecast::accuracy(new2$fitted, RSSI_test)[3],
+    forecast::accuracy(new4$fitted, RSSI_test)[3],
+    forecast::accuracy(new3$fitted, RSSI_test)[3],
+    forecast::accuracy(new5$fitted, RSSI_test)[3]
   )
   
-  # xts com os timestamps do TESTE (substitui data$timestamp e n)
-  RSSI_test <- xts(RSSI_test, order.by = df_te$rdtimestamp)
-  new1fit   <- xts(new1$fitted, order.by = df_te$rdtimestamp)
-  new2fit   <- xts(new2$fitted, order.by = df_te$rdtimestamp)
-  new3fit   <- xts(new3$fitted, order.by = df_te$rdtimestamp)
-  new4fit   <- xts(new4$fitted, order.by = df_te$rdtimestamp)
+  COR[i, ] <- c(
+    cor(RSSI_test, new1$fitted, use = "complete.obs"),
+    cor(RSSI_test, new2$fitted, use = "complete.obs"),
+    cor(RSSI_test, new4$fitted, use = "complete.obs"),
+    cor(RSSI_test, new3$fitted, use = "complete.obs"),
+    cor(RSSI_test, new5$fitted, use = "complete.obs")
+  )
   
-  assign(paste0("result0", i),
-         t(data.frame(MAE = MAE[i, ], MAPE = MAPE[i, ], RMSE = RMSE[i, ], COR = COR[i, ])))
+  RSSI_test_xts <- xts(RSSI_test, order.by = df_te$rdtimestamp)
+  new1fit <- xts(new1$fitted, order.by = df_te$rdtimestamp)
+  new2fit <- xts(new2$fitted, order.by = df_te$rdtimestamp)
+  new3fit <- xts(new3$fitted, order.by = df_te$rdtimestamp)
+  new4fit <- xts(new4$fitted, order.by = df_te$rdtimestamp)
+  new5fit <- xts(new5$fitted, order.by = df_te$rdtimestamp)
+  
+  assign(
+    paste0("result0", i),
+    t(data.frame(
+      MAE  = MAE[i, ],
+      MAPE = MAPE[i, ],
+      RMSE = RMSE[i, ],
+      COR  = COR[i, ]
+    ))
+  )
 }
 
 print(cbind(order_arima, Xsig))
 
+MAE_AUM  <- (MAE[, 4]  - MAE[, 1:3])  / MAE[, 4]
+M_AUM    <- (MAPE[, 4] - MAPE[, 1:3]) / MAPE[, 4]
+RMSE_AUM <- (RMSE[, 4] - RMSE[, 1:3]) / RMSE[, 4]
+COR_AUM  <- (COR[, 1:3] - COR[, 4])   / COR[, 4]
 
-colnames(values)<-c("T","RH")
-values<-as.data.frame(values)
-ggplot(stack(values), aes(x = ind, y = values)) +
-  geom_boxplot() +
-  labs(title="",x="Weather parameter", 
-       y = expression(paste(beta,"-coefficient estimates"))) +
-  geom_hline(yintercept=0, linetype=2, 
-             color = "grey0", size=.3)+
-  theme(axis.title.y = element_text(color=1,size=15),
-        axis.title.x = element_text(color=1,size=15),
-        axis.text.x = element_text(color=1,size=15),
-        axis.text.y = element_text(color=1,size=15),
-        panel.background = element_rect(fill = "white", 
-                                        colour = "black"))
-
-
-
-MAE_AUM  <- (MAE[,4]  - MAE[,1:3])  / MAE[,4]
-M_AUM    <- (MAPE[,4] - MAPE[,1:3]) / MAPE[,4]
-RMSE_AUM <- (RMSE[,4] - RMSE[,1:3]) / RMSE[,4]
-COR_AUM  <- (COR[,1:3] - COR[,4])   / COR[,4]
-
-# organizing the table
-result <- cbind(result01, rbind(
-  MAE_AUM[1,], M_AUM[1,], RMSE_AUM[1,], COR_AUM[1,]
+result <- cbind(get("result01"), rbind(
+  MAE_AUM[1, ], M_AUM[1, ], RMSE_AUM[1, ], COR_AUM[1, ]
 ) * 100)
 
 for (i in 2:m) {
   r <- cbind(get(paste0("result0", i)), rbind(
-    MAE_AUM[i,], M_AUM[i,], RMSE_AUM[i,], COR_AUM[i,]
+    MAE_AUM[i, ], M_AUM[i, ], RMSE_AUM[i, ], COR_AUM[i, ]
   ) * 100)
-  
   result <- abind::abind(result, r, along = 1)
 }
 
-
-
-metric_cols <- c("ARIMA-COV","ARIMA-COV*","ARIMA-COV**","ARIMA")
+metric_cols <- c("ARIMA-COV","ARIMA-COV*","ARIMA-COV**","ARIMA","ARIMA-DUM")
 aum_cols    <- paste0(metric_cols[1:3], "_AUM")
 colnames(result) <- c(metric_cols, aum_cols)
 
-measures <- rownames(result01)  # MAE, MAPE, RMSE, COR
+measures <- rownames(get("result01"))
 rownames(result) <- paste(
   rep(sensors[1:m], each = length(measures)),
   rep(measures, times = m),
   sep = " | "
 )
 
-print(result, digits = 5)
+print(result, digits = 6)
+
 
 
 result_df <- as.data.frame(result) |> round(digits = 4)
@@ -233,6 +193,23 @@ colnames(count)<-c(rownames(MAPE),"Overall")
 print(t(count)) 
 
 
+
+
+
+colnames(values)<-c("T","RH")
+values<-as.data.frame(values)
+ggplot(stack(values), aes(x = ind, y = values)) +
+  geom_boxplot() +
+  labs(title="",x="Weather parameter", 
+       y = expression(paste(beta,"-coefficient estimates"))) +
+  geom_hline(yintercept=0, linetype=2, 
+             color = "grey0", size=.3)+
+  theme(axis.title.y = element_text(color=1,size=15),
+        axis.title.x = element_text(color=1,size=15),
+        axis.text.x = element_text(color=1,size=15),
+        axis.text.y = element_text(color=1,size=15),
+        panel.background = element_rect(fill = "white", 
+                                        colour = "black"))
 
 ### Time series Figures ----
 

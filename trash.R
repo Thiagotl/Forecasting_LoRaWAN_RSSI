@@ -601,3 +601,280 @@ ct_rssi <- psych::corr.test(
 # matriz de correlação entre sensores
 ct_rssi$r
 
+### --- nao apagar daqui saiu os resultados da reuião do dia 23/01/2026
+
+
+####################
+## Fitting ARIMAX ##
+####################
+
+m <- length(rssi_train_list_day)
+sensors <- names(rssi_train_list_day)
+
+order_arima <- matrix(NA, m, 3)
+
+MAE <- MAPE <- RMSE <- COR <- matrix(NA, m, 5)
+colnames(MAE) <- colnames(MAPE) <- colnames(RMSE) <- colnames(COR) <-
+  c("ARIMA-COV","ARIMA-COV*","ARIMA-COV**","ARIMA","ARIMA-DUM")
+
+rownames(order_arima) <- rownames(MAE) <-
+  rownames(MAPE) <- rownames(RMSE) <- rownames(COR) <- sensors
+
+cov_names <- c("T","RH","dum_Summer","dum_Autumn","dum_Winter")
+p_cov <- length(cov_names)
+
+Xsig   <- matrix("", m, p_cov)
+values <- matrix(NA, m, p_cov)
+sinal  <- matrix(NA, m, p_cov)
+
+rownames(Xsig) <- rownames(values) <- rownames(sinal) <- sensors
+colnames(Xsig) <- colnames(values) <- colnames(sinal) <- cov_names
+
+# Matriz para armazenar quais covariáveis foram usadas em cada modelo
+cov_used <- matrix("", m, 3)
+colnames(cov_used) <- c("ARIMA-COV", "ARIMA-COV*", "ARIMA-COV**")
+rownames(cov_used) <- sensors
+
+for (i in seq_along(sensors)) {
+  
+  df_tr <- rssi_train_list_day[[i]]
+  df_te <- rssi_test_list_day[[i]]
+  
+  RSSI <- df_tr$rssi
+  
+  X <- cbind(
+    df_tr$airtemp,
+    df_tr$airhum,
+    df_tr$dum_Summer,
+    df_tr$dum_Autumn,
+    df_tr$dum_Winter
+  )
+  
+  Xtest <- cbind(
+    df_te$airtemp,
+    df_te$airhum,
+    df_te$dum_Summer,
+    df_te$dum_Autumn,
+    df_te$dum_Winter
+  )
+  
+  colnames(X) <- colnames(Xtest) <- cov_names
+  
+  Xdum   <- X[, 3:5, drop = FALSE]
+  Xdum_t <- Xtest[, 3:5, drop = FALSE]
+  
+  # Modelo 1: ARIMA com todas as covariáveis
+  a01 <- auto.arima(RSSI, xreg = X, allowdrift = FALSE)
+  
+  k <- ncol(X)
+  pvals <- coeftest(a01)[, 4]
+  p_xreg <- pvals[(length(a01$coef) - k + 1):length(a01$coef)]
+  tcoef  <- p_xreg < 0.05
+  
+  order_arima[i, ] <- arimaorder(a01)
+  
+  Xsig[i, ] <- ifelse(tcoef, cov_names, "")
+  
+  xreg_coef   <- coef(a01)[(length(a01$coef) - k + 1):length(a01$coef)]
+  values[i, ] <- xreg_coef
+  sinal[i, ]  <- xreg_coef < 0
+  
+  # ESTRATÉGIA REVISADA PARA EVITAR DUPLICAÇÃO
+  # Conta quantas variáveis são significativas
+  n_signif <- sum(tcoef)
+  
+  if (n_signif == 0) {
+    # Caso 1: Nenhuma variável significativa
+    # ARIMA-COV: usa todas (modelo original)
+    # ARIMA-COV*: usa temperatura (primeira)
+    # ARIMA-COV**: usa umidade (segunda)
+    
+    Xnew <- X  # todas
+    Xnewt <- Xtest
+    
+    Xstar <- X[, 1, drop = FALSE]  # temperatura
+    Xstart <- Xtest[, 1, drop = FALSE]
+    
+    Xdblstar <- X[, 2, drop = FALSE]  # umidade
+    Xdblstart <- Xtest[, 2, drop = FALSE]
+    
+    cov_used[i, ] <- c("T,RH,Summer,Autumn,Winter", "T", "RH")
+    
+  } else if (n_signif == 1) {
+    # Caso 2: Apenas uma variável significativa
+    # ARIMA-COV: usa todas (modelo original)
+    # ARIMA-COV*: usa a variável significativa
+    # ARIMA-COV**: usa a variável significativa + temperatura
+    
+    Xnew <- X  # todas
+    Xnewt <- Xtest
+    
+    idx_signif <- which(tcoef)
+    Xstar <- X[, idx_signif, drop = FALSE]  # variável significativa
+    Xstart <- Xtest[, idx_signif, drop = FALSE]
+    
+    # Para evitar duplicação, adiciona temperatura (se não for a mesma)
+    if (idx_signif != 1) {
+      Xdblstar <- X[, c(idx_signif, 1), drop = FALSE]  # signif + temperatura
+      Xdblstart <- Xtest[, c(idx_signif, 1), drop = FALSE]
+      cov_names_dblstar <- paste(cov_names[idx_signif], "T", sep = ",")
+    } else {
+      # Se a significativa for temperatura, adiciona umidade
+      Xdblstar <- X[, c(1, 2), drop = FALSE]  # temperatura + umidade
+      Xdblstart <- Xtest[, c(1, 2), drop = FALSE]
+      cov_names_dblstar <- "T,RH"
+    }
+    
+    cov_used[i, 1] <- "T,RH,Summer,Autumn,Winter"
+    cov_used[i, 2] <- cov_names[idx_signif]
+    cov_used[i, 3] <- cov_names_dblstar
+    
+  } else if (n_signif == 2) {
+    # Caso 3: Duas variáveis significativas
+    # ARIMA-COV: usa todas (modelo original)
+    # ARIMA-COV*: usa as duas significativas
+    # ARIMA-COV**: usa apenas a mais significativa
+    
+    Xnew <- X  # todas
+    Xnewt <- Xtest
+    
+    idx_signif <- which(tcoef)
+    Xstar <- X[, idx_signif, drop = FALSE]  # ambas significativas
+    Xstart <- Xtest[, idx_signif, drop = FALSE]
+    
+    # Encontra a mais significativa (menor p-valor)
+    pvals_signif <- p_xreg[tcoef]
+    idx_most_signif <- idx_signif[which.min(pvals_signif)]
+    Xdblstar <- X[, idx_most_signif, drop = FALSE]  # mais significativa
+    Xdblstart <- Xtest[, idx_most_signif, drop = FALSE]
+    
+    cov_used[i, 1] <- "T,RH,Summer,Autumn,Winter"
+    cov_used[i, 2] <- paste(cov_names[idx_signif], collapse = ",")
+    cov_used[i, 3] <- cov_names[idx_most_signif]
+    
+  } else if (n_signif >= 3) {
+    # Caso 4: Três ou mais variáveis significativas
+    # ARIMA-COV: usa todas (modelo original)
+    # ARIMA-COV*: usa todas as significativas
+    # ARIMA-COV**: usa as duas mais significativas
+    
+    Xnew <- X  # todas
+    Xnewt <- Xtest
+    
+    idx_signif <- which(tcoef)
+    Xstar <- X[, idx_signif, drop = FALSE]  # todas significativas
+    Xstart <- Xtest[, idx_signif, drop = FALSE]
+    
+    # Encontra as duas mais significativas
+    pvals_signif <- p_xreg[tcoef]
+    idx_ordered <- idx_signif[order(pvals_signif)]
+    idx_top2 <- idx_ordered[1:2]
+    Xdblstar <- X[, idx_top2, drop = FALSE]  # duas mais significativas
+    Xdblstart <- Xtest[, idx_top2, drop = FALSE]
+    
+    cov_used[i, 1] <- "T,RH,Summer,Autumn,Winter"
+    cov_used[i, 2] <- paste(cov_names[idx_signif], collapse = ",")
+    cov_used[i, 3] <- paste(cov_names[idx_top2], collapse = ",")
+  }
+  
+  # Ajusta os modelos
+  a02 <- Arima(RSSI, order = arimaorder(a01), xreg = Xstar)
+  a03 <- Arima(RSSI, order = arimaorder(a01))
+  a04 <- Arima(RSSI, order = arimaorder(a01), xreg = Xdblstar)
+  a05 <- Arima(RSSI, order = arimaorder(a01), xreg = Xdum)
+  
+  RSSI_test <- df_te$rssi
+  
+  # Previsões
+  new1 <- Arima(RSSI_test, xreg = Xtest, model = a01)
+  new2 <- Arima(RSSI_test, xreg = Xstart, model = a02)
+  new3 <- Arima(RSSI_test, model = a03)
+  new4 <- Arima(RSSI_test, xreg = Xdblstart, model = a04)
+  new5 <- Arima(RSSI_test, xreg = Xdum_t, model = a05)
+  
+  MAPE[i, ] <- c(
+    forecast::accuracy(new1$fitted, RSSI_test)[5],
+    forecast::accuracy(new2$fitted, RSSI_test)[5],
+    forecast::accuracy(new4$fitted, RSSI_test)[5],
+    forecast::accuracy(new3$fitted, RSSI_test)[5],
+    forecast::accuracy(new5$fitted, RSSI_test)[5]
+  )
+  
+  RMSE[i, ] <- c(
+    forecast::accuracy(new1$fitted, RSSI_test)[2],
+    forecast::accuracy(new2$fitted, RSSI_test)[2],
+    forecast::accuracy(new4$fitted, RSSI_test)[2],
+    forecast::accuracy(new3$fitted, RSSI_test)[2],
+    forecast::accuracy(new5$fitted, RSSI_test)[2]
+  )
+  
+  MAE[i, ] <- c(
+    forecast::accuracy(new1$fitted, RSSI_test)[3],
+    forecast::accuracy(new2$fitted, RSSI_test)[3],
+    forecast::accuracy(new4$fitted, RSSI_test)[3],
+    forecast::accuracy(new3$fitted, RSSI_test)[3],
+    forecast::accuracy(new5$fitted, RSSI_test)[3]
+  )
+  
+  COR[i, ] <- c(
+    cor(RSSI_test, new1$fitted, use = "complete.obs"),
+    cor(RSSI_test, new2$fitted, use = "complete.obs"),
+    cor(RSSI_test, new4$fitted, use = "complete.obs"),
+    cor(RSSI_test, new3$fitted, use = "complete.obs"),
+    cor(RSSI_test, new5$fitted, use = "complete.obs")
+  )
+  
+  RSSI_test_xts <- xts(RSSI_test, order.by = df_te$rdtimestamp)
+  new1fit <- xts(new1$fitted, order.by = df_te$rdtimestamp)
+  new2fit <- xts(new2$fitted, order.by = df_te$rdtimestamp)
+  new3fit <- xts(new3$fitted, order.by = df_te$rdtimestamp)
+  new4fit <- xts(new4$fitted, order.by = df_te$rdtimestamp)
+  new5fit <- xts(new5$fitted, order.by = df_te$rdtimestamp)
+  
+  assign(
+    paste0("result0", i),
+    t(data.frame(
+      MAE  = MAE[i, ],
+      MAPE = MAPE[i, ],
+      RMSE = RMSE[i, ],
+      COR  = COR[i, ]
+    ))
+  )
+}
+
+print(cbind(order_arima, Xsig))
+
+# Mostra quais covariáveis foram usadas em cada modelo
+cat("\n=== Covariáveis usadas em cada modelo ===\n")
+print(cov_used)
+
+MAE_AUM  <- (MAE[, 4]  - MAE[, 1:3])  / MAE[, 4]
+M_AUM    <- (MAPE[, 4] - MAPE[, 1:3]) / MAPE[, 4]
+RMSE_AUM <- (RMSE[, 4] - RMSE[, 1:3]) / RMSE[, 4]
+COR_AUM  <- (COR[, 1:3] - COR[, 4])   / COR[, 4]
+
+result <- cbind(get("result01"), rbind(
+  MAE_AUM[1, ], M_AUM[1, ], RMSE_AUM[1, ], COR_AUM[1, ]
+) * 100)
+
+for (i in 2:m) {
+  r <- cbind(get(paste0("result0", i)), rbind(
+    MAE_AUM[i, ], M_AUM[i, ], RMSE_AUM[i, ], COR_AUM[i, ]
+  ) * 100)
+  result <- abind::abind(result, r, along = 1)
+}
+
+metric_cols <- c("ARIMA-COV","ARIMA-COV*","ARIMA-COV**","ARIMA","ARIMA-DUM")
+aum_cols    <- paste0(metric_cols[1:3], "_AUM")
+colnames(result) <- c(metric_cols, aum_cols)
+
+measures <- rownames(get("result01"))
+rownames(result) <- paste(
+  rep(sensors[1:m], each = length(measures)),
+  rep(measures, times = m),
+  sep = " | "
+)
+
+cat("\n=== Resultados Finais (sem valores duplicados) ===\n")
+print(result, digits = 5)
+
