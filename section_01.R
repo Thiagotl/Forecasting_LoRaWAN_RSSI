@@ -77,6 +77,8 @@ sensors_hour_test <- sensors_test |>
              snr = mean(snr, na.rm = TRUE), 
              .groups = 'drop' ) |>  select(-snr)
 
+
+
 env_test <- read_delim(
   "test_env_vals_after.csv",
   delim = ",", escape_double = FALSE, trim_ws = TRUE
@@ -94,6 +96,7 @@ env_test <- read_delim(
     season = factor(season, levels = c("Spring","Summer","Autumn","Winter"))
   ) |> 
   select(-ts, -mmdd)
+
 
 env_hour_test <- env_test |>
   group_by(rdtimestamp = floor_date(rdtimestamp, "hour")) |>
@@ -357,7 +360,9 @@ env_day_test <- env_test |>
     .groups = "drop"
   )
 
-### Select the RSSI's values - Training Set (Day)----
+
+
+### Select the RSSI's values - Training Set ----
 
 # tinovi - soil
 tinovi01_RSSI_train_d <- sensors_day_train |> 
@@ -466,13 +471,19 @@ rssi_test_list_day <- list(
 
 
 
+
+
+
+### Select the RSSI's values - Training Set  and Testuing Set----
+
+
 # sensors
 ## Week
-
+WSTART = 7
 sensors_week_train <- sensors_train |> 
   group_by(
     nodeid,
-    rdtimestamp = floor_date(rdtimestamp, "week")
+    rdtimestamp = floor_date(rdtimestamp, "week", week_start = WSTART)
   ) |>
   summarise(
     rssi = mean(rssi, na.rm = TRUE),
@@ -483,7 +494,7 @@ sensors_week_train <- sensors_train |>
 #environment
 
 env_week_train <- env_train |>
-  group_by(rdtimestamp = floor_date(rdtimestamp, "week")) |>
+  group_by(rdtimestamp = floor_date(rdtimestamp, "week", week_start = WSTART)) |>
   summarise(
     airtemp  = mean(airtemp, na.rm = TRUE),
     airhum   = mean(airhum,  na.rm = TRUE),
@@ -505,7 +516,7 @@ env_week_train <- env_train |>
 sensors_week_test <- sensors_test |> 
   group_by(
     nodeid,
-    rdtimestamp = floor_date(rdtimestamp, "week")
+    rdtimestamp = floor_date(rdtimestamp, "week", week_start = WSTART)
   ) |> 
   summarise(
     rssi = mean(rssi, na.rm = TRUE),
@@ -515,7 +526,7 @@ sensors_week_test <- sensors_test |>
 
 
 env_week_test <- env_test |>
-  group_by(rdtimestamp = floor_date(rdtimestamp, "week")) |>
+  group_by(rdtimestamp = floor_date(rdtimestamp, "week", week_start = WSTART)) |>
   summarise(
     airtemp  = mean(airtemp, na.rm = TRUE),
     airhum   = mean(airhum,  na.rm = TRUE),
@@ -601,18 +612,6 @@ milesight01_RSSI_train_w <- inner_join(milesight01_RSSI_train_w, env_week_train,
 milesight02_RSSI_train_w <- inner_join(milesight02_RSSI_train_w, env_week_train, by = "rdtimestamp")
 
 
-rssi_train_list_week <- list(
-  Tinovi01    = tinovi01_RSSI_train_w,
-  Tinovi02    = tinovi02_RSSI_train_w,
-  Tinovi03    = tinovi03_RSSI_train_w,
-  Tinovi04    = tinovi04_RSSI_train_w,
-  Tinovi05    = tinovi05_RSSI_train_w,
-  Tinovi06    = tinovi06_RSSI_train_w,
-  Milesight01 = milesight01_RSSI_train_w,
-  Milesight02 = milesight02_RSSI_train_w
-)
-
-
 ## Joins testing sets ----
 
 tinovi01_RSSI_test_w <- inner_join(tinovi01_RSSI_test_w, env_week_test, by = "rdtimestamp") 
@@ -625,6 +624,47 @@ milesight01_RSSI_test_w <- inner_join(milesight01_RSSI_test_w, env_week_test, by
 milesight02_RSSI_test_w <- inner_join(milesight02_RSSI_test_w, env_week_test, by = "rdtimestamp")
 
 
+
+## ajustes das semanas ----
+
+
+tinovi03_RSSI_test_w <- rbind(tinovi03_RSSI_test_w, tinovi03_RSSI_train_w[c(35:53), ]) |> 
+  arrange(rdtimestamp)
+
+tinovi04_RSSI_test_w <- rbind(tinovi04_RSSI_test_w, tinovi04_RSSI_train_w[c(32:53), ]) |> 
+  arrange(rdtimestamp)
+
+tinovi05_RSSI_test_w <- rbind(tinovi05_RSSI_test_w, tinovi05_RSSI_train_w[c(35:53), ]) |> 
+  arrange(rdtimestamp)
+
+tinovi06_RSSI_test_w <- rbind(tinovi06_RSSI_test_w, tinovi06_RSSI_train_w[c(35:53), ]) |> 
+  arrange(rdtimestamp)
+
+
+tinovi03_RSSI_train_w <- tinovi03_RSSI_train_w[c(1:34), ] 
+
+tinovi04_RSSI_train_w <- tinovi04_RSSI_train_w[c(1:31), ] 
+
+tinovi05_RSSI_train_w <- tinovi05_RSSI_train_w[c(1:34), ] 
+
+tinovi06_RSSI_train_w <- tinovi06_RSSI_train_w[c(1:34), ] 
+
+
+
+
+
+rssi_train_list_week <- list(
+  Tinovi01    = tinovi01_RSSI_train_w,
+  Tinovi02    = tinovi02_RSSI_train_w,
+  Tinovi03    = tinovi03_RSSI_train_w,
+  Tinovi04    = tinovi04_RSSI_train_w,
+  Tinovi05    = tinovi05_RSSI_train_w,
+  Tinovi06    = tinovi06_RSSI_train_w,
+  Milesight01 = milesight01_RSSI_train_w,
+  Milesight02 = milesight02_RSSI_train_w
+)
+
+
 rssi_test_list_week <- list(
   Tinovi01    = tinovi01_RSSI_test_w,
   Tinovi02    = tinovi02_RSSI_test_w,
@@ -635,5 +675,6 @@ rssi_test_list_week <- list(
   Milesight01 = milesight01_RSSI_test_w,
   Milesight02 = milesight02_RSSI_test_w
 )
+
 
 

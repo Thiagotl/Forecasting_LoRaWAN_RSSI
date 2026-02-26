@@ -1,8 +1,3 @@
-
-####################
-## Fitting ARIMAX ##
-####################
-
 m <- length(rssi_train_list_day)
 sensors <- names(rssi_train_list_day)
 
@@ -12,8 +7,12 @@ metric_cols <- c("ARIMA-TH","ARIMA-Temp","ARIMA-H","ARIMA","ARIMA-DUM")
 MAE <- MAPE <- RMSE <- COR <- matrix(NA, m, length(metric_cols))
 colnames(MAE) <- colnames(MAPE) <- colnames(RMSE) <- colnames(COR) <- metric_cols
 
-rownames(order_arima) <- rownames(MAE) <- rownames(MAPE) <- rownames(RMSE) <- rownames(COR) <- sensors
+rownames(order_arima) <- rownames(MAE) <- rownames(MAPE) <-
+  rownames(RMSE) <- rownames(COR) <- sensors
 
+## Names for covariates: T and RH remain unchanged although they now represent
+## lagged values (t-1).  Keeping the original names minimizes changes
+## elsewhere in the script.
 cov_names <- c("T","RH","dum_Summer","dum_Autumn","dum_Winter")
 p_cov <- length(cov_names)
 
@@ -21,79 +20,96 @@ Xsig <- matrix("", m, p_cov)
 rownames(Xsig) <- sensors
 colnames(Xsig) <- cov_names
 
-
-plots_dir <- "plots_hour_test"
-
-dir.create(plots_dir, showWarnings = FALSE, recursive = TRUE)
+plots_dir2 <- "plots_hour_test2"
+dir.create(plots_dir2, showWarnings = FALSE, recursive = TRUE)
 
 for (i in seq_along(sensors)) {
-  
   cat("\nProcessando sensor:", sensors[i], "\n")
-  
   df_tr <- rssi_train_list_day[[i]]
   df_te <- rssi_test_list_day[[i]]
-  
   cat("  Dados de treino - RSSI:",
       "NAs:", sum(is.na(df_tr$rssi)),
       "Infinitos:", sum(is.infinite(df_tr$rssi)),
       "Comprimento:", length(df_tr$rssi), "\n")
-  
-  # Verificar se há variação nos dados
-  if(sd(df_tr$rssi, na.rm = TRUE) == 0) {
+  # Check for variation in the training RSSI
+  if (sd(df_tr$rssi, na.rm = TRUE) == 0) {
     cat("  AVISO: RSSI constante nos dados de treino!\n")
   }
-  
-  
   RSSI <- df_tr$rssi
   RSSI_test <- df_te$rssi
   
+  ## ------------------------------------------------------------------------
+  ## Construct lagged covariates
+  ## Instead of using the contemporaneous temperature and humidity, we shift
+  ## these series by one time unit so that the covariate at time t reflects
+  ## the value observed at time t-1.  To ensure continuity between the
+  ## training and testing partitions, we build the lagged series from the
+  ## concatenated training and test covariates and then split them back into
+  ## their respective parts.  The first element of the lagged series has no
+  ## antecedent; here we simply repeat the first observed value to avoid
+  ## introducing missing values.
+  # Combine training and test covariates
+  temp_combined <- c(df_tr$airtemp, df_te$airtemp)
+  hum_combined  <- c(df_tr$airhum,  df_te$airhum)
+  # Create lagged series: shift by one with the first element repeated
+  temp_lag_combined <- c(temp_combined[1], head(temp_combined, -1))
+  hum_lag_combined  <- c(hum_combined[1],  head(hum_combined,  -1))
+  # Partition lagged covariates back into training and test sets
+  n_tr <- nrow(df_tr)
+  n_te <- nrow(df_te)
+  temp_lag_tr <- temp_lag_combined[1:n_tr]
+  hum_lag_tr  <- hum_lag_combined[1:n_tr]
+  temp_lag_te <- temp_lag_combined[(n_tr + 1):(n_tr + n_te)]
+  hum_lag_te  <- hum_lag_combined[(n_tr + 1):(n_tr + n_te)]
+  ## ------------------------------------------------------------------------
+  
+  ## Build the exogenous matrices using lagged temperature and humidity.
+  ## The seasonal dummy variables are used contemporaneously (no lag).  These
+  ## matrices mirror the structure of the original script but with the first
+  ## two columns replaced by their lagged counterparts.
   X <- cbind(
-    df_tr$airtemp,
-    df_tr$airhum,
+    temp_lag_tr,
+    hum_lag_tr,
     df_tr$dum_Summer,
     df_tr$dum_Autumn,
     df_tr$dum_Winter
   )
-  
   Xtest <- cbind(
-    df_te$airtemp,
-    df_te$airhum,
+    temp_lag_te,
+    hum_lag_te,
     df_te$dum_Summer,
     df_te$dum_Autumn,
     df_te$dum_Winter
   )
-  
   colnames(X) <- colnames(Xtest) <- cov_names
   
-  Xth   <- X[, 1:2, drop = FALSE]
+  ## Subsets for different model configurations
+  Xth   <- X[, 1:2, drop = FALSE]   # both lagged temperature and humidity
   Xth_t <- Xtest[, 1:2, drop = FALSE]
-  
-  Xtemp   <- X[, 1, drop = FALSE]
+  Xtemp   <- X[, 1, drop = FALSE]   # only lagged temperature
   Xtemp_t <- Xtest[, 1, drop = FALSE]
+  Xhum    <- X[, 2, drop = FALSE]   # only lagged humidity
+  Xhum_t  <- Xtest[, 2, drop = FALSE]
+  Xdum    <- X[, 3:5, drop = FALSE] # seasonal dummies (no lag)
+  Xdum_t  <- Xtest[, 3:5, drop = FALSE]
   
-  Xhum   <- X[, 2, drop = FALSE]
-  Xhum_t <- Xtest[, 2, drop = FALSE]
-  
-  Xdum   <- X[, 3:5, drop = FALSE]
-  Xdum_t <- Xtest[, 3:5, drop = FALSE]
-  
+  ## Fit ARIMAX models using auto.arima on the training data with lagged
+  ## temperature and humidity.  The selected order is stored and later used
+  ## to fit variants of the model with single covariates and no covariates.
   a01 <- auto.arima(RSSI, xreg = Xth, allowdrift = FALSE)
   ord <- arimaorder(a01)
   order_arima[i, ] <- ord
-  
   ct <- lmtest::coeftest(a01)
   pvals <- ct[, 4]
   names(pvals) <- rownames(ct)
-  
   bhat <- stats::coef(a01)
-  
+  # Helper to extract coefficient names (original script unchanged)
   pick_name <- function(v) {
     if (v %in% names(bhat)) return(v)
     vx <- paste0("xreg", v)
     if (vx %in% names(bhat)) return(vx)
     return(NA_character_)
   }
-  
   for (v in c("T", "RH")) {
     nm <- pick_name(v)
     if (!is.na(nm) && !is.na(pvals[nm]) && pvals[nm] < 0.05) {
@@ -103,21 +119,21 @@ for (i in seq_along(sensors)) {
       Xsig[i, v] <- ""
     }
   }
-  
+  # Seasonal dummies are not assessed for significance
   Xsig[i, c("dum_Summer","dum_Autumn","dum_Winter")] <- ""
-  
-  
+  ## Fit additional models with the same ARIMA order but different
+  ## combinations of regressors
   a02 <- Arima(RSSI, order = ord, xreg = Xtemp)
   a03 <- Arima(RSSI, order = ord, xreg = Xhum)
   a04 <- Arima(RSSI, order = ord)
   a05 <- Arima(RSSI, order = ord, xreg = Xdum)
-  
+  ## Refit the models on the test data using the estimated parameters
   new1 <- Arima(RSSI_test, xreg = Xth_t, model = a01)
   new2 <- Arima(RSSI_test, xreg = Xtemp_t, model = a02)
   new3 <- Arima(RSSI_test, xreg = Xhum_t, model = a03)
   new4 <- Arima(RSSI_test, model = a04)
   new5 <- Arima(RSSI_test, xreg = Xdum_t, model = a05)
-  
+  ## Accuracy metrics: MAPE, RMSE, MAE, COR
   MAPE[i, ] <- c(
     forecast::accuracy(new1$fitted, RSSI_test)[5],
     forecast::accuracy(new2$fitted, RSSI_test)[5],
@@ -125,7 +141,6 @@ for (i in seq_along(sensors)) {
     forecast::accuracy(new4$fitted, RSSI_test)[5],
     forecast::accuracy(new5$fitted, RSSI_test)[5]
   )
-  
   RMSE[i, ] <- c(
     forecast::accuracy(new1$fitted, RSSI_test)[2],
     forecast::accuracy(new2$fitted, RSSI_test)[2],
@@ -133,7 +148,6 @@ for (i in seq_along(sensors)) {
     forecast::accuracy(new4$fitted, RSSI_test)[2],
     forecast::accuracy(new5$fitted, RSSI_test)[2]
   )
-  
   MAE[i, ] <- c(
     forecast::accuracy(new1$fitted, RSSI_test)[3],
     forecast::accuracy(new2$fitted, RSSI_test)[3],
@@ -141,7 +155,6 @@ for (i in seq_along(sensors)) {
     forecast::accuracy(new4$fitted, RSSI_test)[3],
     forecast::accuracy(new5$fitted, RSSI_test)[3]
   )
-  
   COR[i, ] <- c(
     cor(RSSI_test, new1$fitted, use = "complete.obs"),
     cor(RSSI_test, new2$fitted, use = "complete.obs"),
@@ -149,18 +162,14 @@ for (i in seq_along(sensors)) {
     cor(RSSI_test, new4$fitted, use = "complete.obs"),
     cor(RSSI_test, new5$fitted, use = "complete.obs")
   )
-  
+  ## Prepare xts objects for plotting
   RSSI_test_xts <- xts::xts(RSSI_test, order.by = df_te$rdtimestamp)
   new1fit <- xts::xts(new1$fitted, order.by = df_te$rdtimestamp)
   new2fit <- xts::xts(new2$fitted, order.by = df_te$rdtimestamp)
   new3fit <- xts::xts(new3$fitted, order.by = df_te$rdtimestamp)
   new4fit <- xts::xts(new4$fitted, order.by = df_te$rdtimestamp)
   new5fit <- xts::xts(new5$fitted, order.by = df_te$rdtimestamp)
-  
-  
-  # =========================
-  # PLOT (1 por sensor): Observado + todos os modelos (TESTE)
-  # =========================
+  ## Plot observed vs. fitted values for each model on the test set
   plot_df <- data.frame(
     rdtimestamp = as.POSIXct(df_te$rdtimestamp),
     Observed    = as.numeric(RSSI_test),
@@ -170,14 +179,12 @@ for (i in seq_along(sensors)) {
     `ARIMA`      = as.numeric(new4$fitted),
     `ARIMA-DUM`  = as.numeric(new5$fitted)
   )
-  
   plot_long <- plot_df %>%
     pivot_longer(
       cols = -rdtimestamp,
       names_to = "series",
       values_to = "value"
     )
-  
   p <- ggplot(plot_long, aes(x = rdtimestamp, y = value, color = series)) +
     geom_line(na.rm = TRUE) +
     labs(
@@ -185,13 +192,12 @@ for (i in seq_along(sensors)) {
       x = NULL, y = "RSSI"
     ) +
     theme_bw()
-  
   safe_name <- gsub("[^A-Za-z0-9_-]", "_", sensors[i])
   ggsave(
-    filename = file.path(plots_dir, paste0("test_overlay_", safe_name, ".png")),
+    filename = file.path(plots_dir2, paste0("test_overlay_", safe_name, ".png")),
     plot = p, width = 12, height = 5, dpi = 150
   )
-  
+  ## Store results for each sensor in an object named result0<i>
   assign(
     paste0("result0", i),
     t(data.frame(
@@ -202,124 +208,33 @@ for (i in seq_along(sensors)) {
     ))
   )
 }
-
 print(cbind(order_arima, Xsig))
 
-
-
+## Relative performance metrics: compute improvement (or deterioration) of
+## competing models relative to the baseline ARIMA model without exogenous
+## variables.  Positive values indicate better performance for accuracy
+## measures (lower error or higher correlation).
 base_col <- which(metric_cols == "ARIMA")
 comp_cols <- which(metric_cols %in% c("ARIMA-TH","ARIMA-Temp","ARIMA-H","ARIMA-DUM"))
-
 MAE_AUM  <- (MAE[, base_col]  - MAE[, comp_cols, drop = FALSE])  / MAE[, base_col]
 M_AUM    <- (MAPE[, base_col] - MAPE[, comp_cols, drop = FALSE]) / MAPE[, base_col]
 RMSE_AUM <- (RMSE[, base_col] - RMSE[, comp_cols, drop = FALSE]) / RMSE[, base_col]
 COR_AUM  <- (COR[, comp_cols, drop = FALSE] - COR[, base_col])   / COR[, base_col]
-
 result <- cbind(get("result01"), rbind(
   MAE_AUM[1, ], M_AUM[1, ], RMSE_AUM[1, ], COR_AUM[1, ]
 ) * 100)
-
 for (i in 2:m) {
   r <- cbind(get(paste0("result0", i)), rbind(
     MAE_AUM[i, ], M_AUM[i, ], RMSE_AUM[i, ], COR_AUM[i, ]
   ) * 100)
   result <- abind::abind(result, r, along = 1)
 }
-
 aum_cols <- paste0(metric_cols[comp_cols], "_AUM")
 colnames(result) <- c(metric_cols, aum_cols)
-
 measures <- rownames(get("result01"))
 rownames(result) <- paste(
   rep(sensors[1:m], each = length(measures)),
   rep(measures, times = m),
   sep = " | "
 )
-
 print(result, digits = 5)
-
-
-# count<-apply(cbind(apply(result01[1:3,], 1, rank)==1,
-#                    COR=rank(result01[4,])==4),1,sum)
-# for(i in 2:8){
-#   r<-get(paste0("result0",i))
-#   r<-apply(cbind(apply(r[1:3,], 1, rank)==1,
-#                  COR=rank(r[4,])==4),1,sum)
-#   count<-abind::abind(count,r,along = 2)
-# }
-# count<-abind::abind(count,apply(count,1,sum),along = 2)
-# colnames(count)<-c(rownames(MAPE),"Overall")
-# 
-# print(t(count)) 
-# 
-# 
-# 
-# 
-# 
-# result_df <- as.data.frame(result) |> round(digits = 4)
-# 
-# 
-# kable(result_df, "latex") %>%
-#   kable_styling() %>%
-#   save_kable("tabela.tex")
-# 
-# 
-# colnames(values)<-c("T","RH")
-# values<-as.data.frame(values)
-# ggplot(stack(values), aes(x = ind, y = values)) +
-#   geom_boxplot() +
-#   labs(title="",x="Weather parameter", 
-#        y = expression(paste(beta,"-coefficient estimates"))) +
-#   geom_hline(yintercept=0, linetype=2, 
-#              color = "grey0", size=.3)+
-#   theme(axis.title.y = element_text(color=1,size=15),
-#         axis.title.x = element_text(color=1,size=15),
-#         axis.text.x = element_text(color=1,size=15),
-#         axis.text.y = element_text(color=1,size=15),
-#         panel.background = element_rect(fill = "white", 
-#                                         colour = "black"))
-
-### Time series Figures ----
-
-# RSSI_01 <- xts(tinovi01_RSSI$rssi, order.by=tinovi01_RSSI$rdtimestamp)
-# RSSI_02 <- xts(tinovi02_RSSI$rssi, order.by = tinovi02_RSSI$rdtimestamp)
-# RSSI_03 <- xts(tinovi03_RSSI$rssi, order.by = tinovi03_RSSI$rdtimestamp)
-# RSSI_04 <- xts(tinovi04_RSSI$rssi, order.by = tinovi04_RSSI$rdtimestamp)
-# RSSI_05 <- xts(tinovi05_RSSI$rssi, order.by = tinovi05_RSSI$rdtimestamp)
-# RSSI_06 <- xts(tinovi06_RSSI$rssi, order.by = tinovi06_RSSI$rdtimestamp)
-# RSSI_07 <- xts(milesight01_RSSI$rssi, order.by=milesight01_RSSI$rdtimestamp)
-# RSSI_08 <- xts(milesight02_RSSI$rssi, order.by=milesight02_RSSI$rdtimestamp)
-#
-# {plot(RSSI_01,main="", yaxis.right=FALSE, grid.col = "white",
-#       format.labels="%b-%Y", main.timespan = FALSE,
-#       cex.axis=1.2,
-#       lwd=0.5,ylim=c(-115,-42),ylab="",cex.lab=1.2)
-#   par(cex.lab=1.2, cex.axis=1.2, cex.main=1.2, cex.sub=1.2)
-#   lines(RSSI_02,main="RSSI 02",col=2)
-#   lines(RSSI_03,main="RSSI 02",col=3)
-#   lines(RSSI_04,main="RSSI 02",col=4)
-#   addLegend("topright",
-#             legend.names=c("RSSI 01","RSSI 02","RSSI 03","RSSI 04"),
-#             col=1:4, cex=1.2,
-#             lwd=rep(.5,4),
-#             ncol=2,
-#             bg="white")
-# }
-# 
-# {
-#   plot(RSSI_05,main="", yaxis.right=FALSE, grid.col = "white",
-#        format.labels="%b-%Y", main.timespan = FALSE,
-#        cex.axis=1.2,
-#        lwd=0.5,ylim=c(-115,-42),ylab="",cex.lab=1.2)
-#   par(cex.lab=1.2, cex.axis=1.2, cex.main=1.2, cex.sub=1.2)
-#   lines(RSSI_06,main="",col=2)
-#   lines(RSSI_07,main="",col=3)
-#   lines(RSSI_08,main="",col=4)
-#   addLegend("topright",
-#             legend.names=c("RSSI 05","RSSI 06","RSSI 07","RSSI 08"),
-#             col=1:4, cex=1.2,
-#             lwd=rep(.5,4),
-#             ncol=2,
-#             bg="white")
-# }
-
