@@ -224,16 +224,47 @@ rssi_test_list <- list(
 
 ## Pearson's correlation ----
 # 
-# psych::corr.test(tinovi01_RSSI_train[, c(3:5)])
-# psych::corr.test(tinovi02_RSSI_train[, c(3:5)])
-# psych::corr.test(tinovi03_RSSI_train[, c(3:5)])
-# psych::corr.test(tinovi04_RSSI_train[, c(3:5)])
-# psych::corr.test(tinovi05_RSSI_train[, c(3:5)])
-# psych::corr.test(tinovi06_RSSI_train[, c(3:5)])
-# psych::corr.test(milesight01_RSSI_train[, c(3:5)])
-# psych::corr.test(milesight02_RSSI_train[, c(3:5)])
+r1 <- psych::corr.test(tinovi01_RSSI_train[, c(3:5)])
+r2 <- psych::corr.test(tinovi02_RSSI_train[, c(3:5)])
+r3 <- psych::corr.test(tinovi03_RSSI_train[, c(3:5)])
+r4 <- psych::corr.test(tinovi04_RSSI_train[, c(3:5)])
+r5 <- psych::corr.test(tinovi05_RSSI_train[, c(3:5)])
+r6 <- psych::corr.test(tinovi06_RSSI_train[, c(3:5)])
+r7 <- psych::corr.test(milesight01_RSSI_train[, c(3:5)])
+r8 <- psych::corr.test(milesight02_RSSI_train[, c(3:5)])
 
 
+# verificar_correlacoes <- function(df, nome_df) {
+#   resultado <- psych::corr.test(df[, c(3:5)])
+#   
+#   cat("\n", nome_df, ":\n")
+#   
+#   # Extrair apenas as correlações significativas (p < 0.05)
+#   sig <- resultado$p < 0.05 & upper.tri(resultado$p)  # upper.tri pega apenas metade superior
+#   
+#   if(any(sig)) {
+#     for(i in which(rowSums(sig) > 0)) {
+#       for(j in which(sig[i,])) {
+#         cat(sprintf("  %s x %s: r = %.3f, p = %.4f\n", 
+#                     colnames(resultado$r)[i], 
+#                     colnames(resultado$r)[j],
+#                     resultado$r[i,j], 
+#                     resultado$p[i,j]))
+#       }
+#     }
+#   } else {
+#     cat("  Nenhuma correlação significativa encontrada (p < 0.05)\n")
+#   }
+# }
+
+# verificar_correlacoes(tinovi01_RSSI_train, "tinovi01")
+# verificar_correlacoes(tinovi02_RSSI_train, "tinovi02")
+# verificar_correlacoes(tinovi03_RSSI_train, "tinovi03")
+# verificar_correlacoes(tinovi04_RSSI_train, "tinovi04")
+# verificar_correlacoes(tinovi05_RSSI_train, "tinovi05")
+# verificar_correlacoes(tinovi06_RSSI_train, "tinovi06")
+# verificar_correlacoes(milesight01_RSSI_train, "milesight01")
+# verificar_correlacoes(milesight02_RSSI_train, "milesight02")
 
 # make_corr_table <- function(data, caption) {
 #   ct  <- psych::corr.test(data[, 3:8])
@@ -247,7 +278,7 @@ rssi_test_list <- list(
 #   ) |>
 #     kable_classic(full_width = FALSE)
 # }
-# 
+
 # make_corr_table(tinovi01_RSSI, "Correlation matrix - Tinovi 02")
 # make_corr_table(tinovi02_RSSI, "Correlation matrix - Tinovi 02")
 # make_corr_table(tinovi03_RSSI, "Correlation matrix - Tinovi 03")
@@ -289,8 +320,6 @@ rssi_test_list <- list(
 # triangular_corr_table(tinovi06_RSSI, "Correlation matrix - Tinovi 06")
 # triangular_corr_table(milesight01_RSSI, "Correlation matrix - Milesight 01")
 # triangular_corr_table(milesight02_RSSI, "Correlation matrix - Milesight 02")
-
-
 
 
 ### Training data set - Nodes and Environment ---- 
@@ -359,7 +388,6 @@ env_day_test <- env_test |>
     
     .groups = "drop"
   )
-
 
 
 ### Select the RSSI's values - Training Set ----
@@ -469,13 +497,7 @@ rssi_test_list_day <- list(
   Milesight02 = milesight02_RSSI_test_d
 )
 
-
-
-
-
-
 ### Select the RSSI's values - Training Set  and Testuing Set----
-
 
 # sensors
 ## Week
@@ -598,8 +620,6 @@ milesight02_RSSI_test_w <- sensors_week_test |>
   dplyr::filter(nodeid == "milesight-02") |> select(-snr)
 
 
-
-
 ## Joins training sets ----
 
 tinovi01_RSSI_train_w <- inner_join(tinovi01_RSSI_train_w, env_week_train, by = "rdtimestamp") 
@@ -622,7 +642,6 @@ tinovi05_RSSI_test_w <- inner_join(tinovi05_RSSI_test_w, env_week_test, by = "rd
 tinovi06_RSSI_test_w <- inner_join(tinovi06_RSSI_test_w, env_week_test, by = "rdtimestamp") 
 milesight01_RSSI_test_w <- inner_join(milesight01_RSSI_test_w, env_week_test, by = "rdtimestamp")
 milesight02_RSSI_test_w <- inner_join(milesight02_RSSI_test_w, env_week_test, by = "rdtimestamp")
-
 
 
 ## ajustes das semanas ----
@@ -650,9 +669,6 @@ tinovi05_RSSI_train_w <- tinovi05_RSSI_train_w[c(1:34), ]
 tinovi06_RSSI_train_w <- tinovi06_RSSI_train_w[c(1:34), ] 
 
 
-
-
-
 rssi_train_list_week <- list(
   Tinovi01    = tinovi01_RSSI_train_w,
   Tinovi02    = tinovi02_RSSI_train_w,
@@ -675,6 +691,4 @@ rssi_test_list_week <- list(
   Milesight01 = milesight01_RSSI_test_w,
   Milesight02 = milesight02_RSSI_test_w
 )
-
-
 

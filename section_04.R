@@ -1,3 +1,6 @@
+
+## lag models
+
 m <- length(rssi_train_list_day)
 sensors <- names(rssi_train_list_day)
 
@@ -10,9 +13,7 @@ colnames(MAE) <- colnames(MAPE) <- colnames(RMSE) <- colnames(COR) <- metric_col
 rownames(order_arima) <- rownames(MAE) <- rownames(MAPE) <-
   rownames(RMSE) <- rownames(COR) <- sensors
 
-## Names for covariates: T and RH remain unchanged although they now represent
-## lagged values (t-1).  Keeping the original names minimizes changes
-## elsewhere in the script.
+
 cov_names <- c("T","RH","dum_Summer","dum_Autumn","dum_Winter")
 p_cov <- length(cov_names)
 
@@ -40,15 +41,7 @@ for (i in seq_along(sensors)) {
   
   ## ------------------------------------------------------------------------
   ## Construct lagged covariates
-  ## Instead of using the contemporaneous temperature and humidity, we shift
-  ## these series by one time unit so that the covariate at time t reflects
-  ## the value observed at time t-1.  To ensure continuity between the
-  ## training and testing partitions, we build the lagged series from the
-  ## concatenated training and test covariates and then split them back into
-  ## their respective parts.  The first element of the lagged series has no
-  ## antecedent; here we simply repeat the first observed value to avoid
-  ## introducing missing values.
-  # Combine training and test covariates
+
   temp_combined <- c(df_tr$airtemp, df_te$airtemp)
   hum_combined  <- c(df_tr$airhum,  df_te$airhum)
   # Create lagged series: shift by one with the first element repeated
@@ -63,10 +56,6 @@ for (i in seq_along(sensors)) {
   hum_lag_te  <- hum_lag_combined[(n_tr + 1):(n_tr + n_te)]
   ## ------------------------------------------------------------------------
   
-  ## Build the exogenous matrices using lagged temperature and humidity.
-  ## The seasonal dummy variables are used contemporaneously (no lag).  These
-  ## matrices mirror the structure of the original script but with the first
-  ## two columns replaced by their lagged counterparts.
   X <- cbind(
     temp_lag_tr,
     hum_lag_tr,
@@ -93,9 +82,7 @@ for (i in seq_along(sensors)) {
   Xdum    <- X[, 3:5, drop = FALSE] # seasonal dummies (no lag)
   Xdum_t  <- Xtest[, 3:5, drop = FALSE]
   
-  ## Fit ARIMAX models using auto.arima on the training data with lagged
-  ## temperature and humidity.  The selected order is stored and later used
-  ## to fit variants of the model with single covariates and no covariates.
+
   a01 <- auto.arima(RSSI, xreg = Xth, allowdrift = FALSE)
   ord <- arimaorder(a01)
   order_arima[i, ] <- ord
@@ -103,7 +90,7 @@ for (i in seq_along(sensors)) {
   pvals <- ct[, 4]
   names(pvals) <- rownames(ct)
   bhat <- stats::coef(a01)
-  # Helper to extract coefficient names (original script unchanged)
+  
   pick_name <- function(v) {
     if (v %in% names(bhat)) return(v)
     vx <- paste0("xreg", v)
@@ -119,15 +106,16 @@ for (i in seq_along(sensors)) {
       Xsig[i, v] <- ""
     }
   }
-  # Seasonal dummies are not assessed for significance
+
   Xsig[i, c("dum_Summer","dum_Autumn","dum_Winter")] <- ""
-  ## Fit additional models with the same ARIMA order but different
-  ## combinations of regressors
+ 
+  
   a02 <- Arima(RSSI, order = ord, xreg = Xtemp)
   a03 <- Arima(RSSI, order = ord, xreg = Xhum)
   a04 <- Arima(RSSI, order = ord)
   a05 <- Arima(RSSI, order = ord, xreg = Xdum)
-  ## Refit the models on the test data using the estimated parameters
+  
+  
   new1 <- Arima(RSSI_test, xreg = Xth_t, model = a01)
   new2 <- Arima(RSSI_test, xreg = Xtemp_t, model = a02)
   new3 <- Arima(RSSI_test, xreg = Xhum_t, model = a03)
@@ -162,14 +150,14 @@ for (i in seq_along(sensors)) {
     cor(RSSI_test, new4$fitted, use = "complete.obs"),
     cor(RSSI_test, new5$fitted, use = "complete.obs")
   )
-  ## Prepare xts objects for plotting
+  
   RSSI_test_xts <- xts::xts(RSSI_test, order.by = df_te$rdtimestamp)
   new1fit <- xts::xts(new1$fitted, order.by = df_te$rdtimestamp)
   new2fit <- xts::xts(new2$fitted, order.by = df_te$rdtimestamp)
   new3fit <- xts::xts(new3$fitted, order.by = df_te$rdtimestamp)
   new4fit <- xts::xts(new4$fitted, order.by = df_te$rdtimestamp)
   new5fit <- xts::xts(new5$fitted, order.by = df_te$rdtimestamp)
-  ## Plot observed vs. fitted values for each model on the test set
+  
   plot_df <- data.frame(
     rdtimestamp = as.POSIXct(df_te$rdtimestamp),
     Observed    = as.numeric(RSSI_test),
@@ -197,7 +185,7 @@ for (i in seq_along(sensors)) {
     filename = file.path(plots_dir2, paste0("test_overlay_", safe_name, ".png")),
     plot = p, width = 12, height = 5, dpi = 150
   )
-  ## Store results for each sensor in an object named result0<i>
+  
   assign(
     paste0("result0", i),
     t(data.frame(
@@ -210,10 +198,6 @@ for (i in seq_along(sensors)) {
 }
 print(cbind(order_arima, Xsig))
 
-## Relative performance metrics: compute improvement (or deterioration) of
-## competing models relative to the baseline ARIMA model without exogenous
-## variables.  Positive values indicate better performance for accuracy
-## measures (lower error or higher correlation).
 base_col <- which(metric_cols == "ARIMA")
 comp_cols <- which(metric_cols %in% c("ARIMA-TH","ARIMA-Temp","ARIMA-H","ARIMA-DUM"))
 MAE_AUM  <- (MAE[, base_col]  - MAE[, comp_cols, drop = FALSE])  / MAE[, base_col]
