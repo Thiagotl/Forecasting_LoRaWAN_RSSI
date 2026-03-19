@@ -266,27 +266,27 @@ r8 <- psych::corr.test(milesight02_RSSI_train[, c(3:5)])
 # verificar_correlacoes(milesight01_RSSI_train, "milesight01")
 # verificar_correlacoes(milesight02_RSSI_train, "milesight02")
 
-# make_corr_table <- function(data, caption) {
-#   ct  <- psych::corr.test(data[, 3:8])
-#   tab <- round(ct$r, 2)
-#   
-#   kbl(
-#     tab,
-#     format  = "latex",
-#     booktabs = TRUE,
-#     caption = caption
-#   ) |>
-#     kable_classic(full_width = FALSE)
-# }
+make_corr_table <- function(data, caption) {
+  ct  <- psych::corr.test(data[, 3:8])
+  tab <- round(ct$r, 2)
 
-# make_corr_table(tinovi01_RSSI, "Correlation matrix - Tinovi 02")
-# make_corr_table(tinovi02_RSSI, "Correlation matrix - Tinovi 02")
-# make_corr_table(tinovi03_RSSI, "Correlation matrix - Tinovi 03")
-# make_corr_table(tinovi04_RSSI, "Correlation matrix - Tinovi 04")
-# make_corr_table(tinovi05_RSSI, "Correlation matrix - Tinovi 05")
-# make_corr_table(tinovi06_RSSI, "Correlation matrix - Tinovi 06")
-# make_corr_table(milesight01_RSSI, "Correlation matrix - Milesight 01")
-# make_corr_table(milesight02_RSSI, "Correlation matrix - Milesight 02")
+  kbl(
+    tab,
+    format  = "latex",
+    booktabs = TRUE,
+    caption = caption
+  ) |>
+    kable_classic(full_width = FALSE)
+}
+
+# make_corr_table(tinovi01_RSSI_train, "Correlation matrix - Tinovi 01")
+# make_corr_table(tinovi02_RSSI_train, "Correlation matrix - Tinovi 02")
+# make_corr_table(tinovi03_RSSI_train, "Correlation matrix - Tinovi 03")
+# make_corr_table(tinovi04_RSSI_train, "Correlation matrix - Tinovi 04")
+# make_corr_table(tinovi05_RSSI_train, "Correlation matrix - Tinovi 05")
+# make_corr_table(tinovi06_RSSI_train, "Correlation matrix - Tinovi 06")
+# make_corr_table(milesight01_RSSI_train, "Correlation matrix - Milesight 01")
+# make_corr_table(milesight02_RSSI_train, "Correlation matrix - Milesight 02")
 
 
 # triangular_corr_table <- function(data, caption, type = c("lower", "upper")) {

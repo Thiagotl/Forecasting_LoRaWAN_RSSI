@@ -1092,3 +1092,304 @@ ggplot(stack(values), aes(x = ind, y = values)) +
         axis.text.y = element_text(color=1,size=15),
         panel.background = element_rect(fill = "white", 
                                         colour = "black"))
+# ----
+# sensors
+## Week
+
+min_weeks <- 25
+
+# 1) marca a semana (sem renomear nada importante)
+tr <- sensors_train %>%
+  mutate(rdweek = floor_date(rdtimestamp, "week", week_start = 1))
+
+te <- sensors_test %>%
+  mutate(rdweek = floor_date(rdtimestamp, "week", week_start = 1))
+
+# 2) quantas semanas tem no teste por nodeid
+test_weeks <- te %>%
+  distinct(nodeid, rdweek) %>%
+  count(nodeid, name = "n_test_weeks")
+
+# 3) semanas do treino que precisam ir pro teste (as mais recentes)
+weeks_to_move <- tr %>%
+  distinct(nodeid, rdweek) %>%
+  left_join(test_weeks, by = "nodeid") %>%
+  mutate(
+    n_test_weeks = coalesce(n_test_weeks, 0L),
+    missing = pmax(0L, min_weeks - n_test_weeks)
+  ) %>%
+  filter(missing > 0) %>%
+  group_by(nodeid) %>%
+  arrange(desc(rdweek), .by_group = TRUE) %>%
+  mutate(rk = row_number()) %>%
+  filter(rk <= missing) %>%
+  ungroup() %>%
+  select(nodeid, rdweek)
+
+# 4) move do treino -> teste (sem apagar colunas)
+moved <- tr %>% semi_join(weeks_to_move, by = c("nodeid", "rdweek"))
+train_fixed <- tr %>% anti_join(weeks_to_move, by = c("nodeid", "rdweek"))
+test_fixed  <- bind_rows(te, moved)
+
+# (opcional) relatório rápido
+report <- test_fixed %>%
+  distinct(nodeid, rdweek) %>%
+  count(nodeid, name = "n_test_weeks_final") %>%
+  arrange(n_test_weeks_final)
+
+report
+
+
+# 
+# sensors_week_train <- sensors_train |> 
+#   group_by(
+#     nodeid,
+#     rdtimestamp = floor_date(rdtimestamp, "week")
+#   ) |>
+#   summarise(
+#     rssi = mean(rssi, na.rm = TRUE),
+#     snr  = mean(snr,  na.rm = TRUE),
+#     .groups = "drop"
+#   )
+
+
+
+### Testing data set - Nodes and Environment ---- 
+
+
+# sensors_week_test <- sensors_test |> 
+#   group_by(
+#     nodeid,
+#     rdtimestamp = floor_date(rdtimestamp, "week")
+#   ) |> 
+#   summarise(
+#     rssi = mean(rssi, na.rm = TRUE),
+#     snr = mean(snr, na.rm = TRUE),
+#     .groups = 'drop'
+#   )
+
+
+
+min_weeks <- 25
+
+# 1) marca a semana (sem renomear nada importante)
+tr <- sensors_train %>%
+  mutate(rdweek = floor_date(rdtimestamp, "week", week_start = 1))
+
+te <- sensors_test %>%
+  mutate(rdweek = floor_date(rdtimestamp, "week", week_start = 1))
+
+# 2) quantas semanas tem no teste por nodeid
+test_weeks <- te %>%
+  distinct(nodeid, rdweek) %>%
+  count(nodeid, name = "n_test_weeks")
+
+# 3) semanas do treino que precisam ir pro teste (as mais recentes)
+weeks_to_move <- tr %>%
+  distinct(nodeid, rdweek) %>%
+  left_join(test_weeks, by = "nodeid") %>%
+  mutate(
+    n_test_weeks = coalesce(n_test_weeks, 0L),
+    missing = pmax(0L, min_weeks - n_test_weeks)
+  ) %>%
+  filter(missing > 0) %>%
+  group_by(nodeid) %>%
+  arrange(desc(rdweek), .by_group = TRUE) %>%
+  mutate(rk = row_number()) %>%
+  filter(rk <= missing) %>%
+  ungroup() %>%
+  select(nodeid, rdweek)
+
+# 4) move do treino -> teste (sem apagar colunas)
+moved <- tr %>% semi_join(weeks_to_move, by = c("nodeid", "rdweek"))
+train_fixed <- tr %>% anti_join(weeks_to_move, by = c("nodeid", "rdweek"))
+test_fixed  <- bind_rows(te, moved)
+
+# (opcional) relatório rápido
+report <- test_fixed %>%
+  distinct(nodeid, rdweek) %>%
+  count(nodeid, name = "n_test_weeks_final") %>%
+  arrange(n_test_weeks_final)
+
+report
+
+
+
+WSTART <- 1  # 1 = segunda-feira (ISO)
+
+# ========== ENV weekly (train/test) ==========
+env_week_train <- env_train %>%
+  mutate(rdtimestamp = as.POSIXct(rdtimestamp, tz = "GMT")) %>%
+  group_by(rdtimestamp = floor_date(rdtimestamp, "week", week_start = WSTART)) %>%
+  summarise(
+    airtemp = mean(airtemp, na.rm = TRUE),
+    airhum  = mean(airhum,  na.rm = TRUE),
+    season  = dplyr::first(season),
+    dum_Summer = as.integer(dplyr::first(season) == "Summer"),
+    dum_Autumn = as.integer(dplyr::first(season) == "Autumn"),
+    dum_Winter = as.integer(dplyr::first(season) == "Winter"),
+    .groups = "drop"
+  )
+
+env_week_test <- env_test %>%
+  mutate(rdtimestamp = as.POSIXct(rdtimestamp, tz = "GMT")) %>%
+  group_by(rdtimestamp = floor_date(rdtimestamp, "week", week_start = WSTART)) %>%
+  summarise(
+    airtemp = mean(airtemp, na.rm = TRUE),
+    airhum  = mean(airhum,  na.rm = TRUE),
+    season  = dplyr::first(season),
+    dum_Summer = as.integer(dplyr::first(season) == "Summer"),
+    dum_Autumn = as.integer(dplyr::first(season) == "Autumn"),
+    dum_Winter = as.integer(dplyr::first(season) == "Winter"),
+    .groups = "drop"
+  )
+
+# ========== SENSORS weekly (train/test) ==========
+sensors_week_train <- train_fixed %>%
+  mutate(rdtimestamp = as.POSIXct(rdtimestamp, tz = "GMT")) %>%
+  group_by(
+    nodeid,
+    rdtimestamp = floor_date(rdtimestamp, "week", week_start = WSTART)
+  ) %>%
+  summarise(
+    rssi = mean(rssi, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+sensors_week_test <- test_fixed %>%
+  mutate(rdtimestamp = as.POSIXct(rdtimestamp, tz = "GMT")) %>%
+  group_by(
+    nodeid,
+    rdtimestamp = floor_date(rdtimestamp, "week", week_start = WSTART)
+  ) %>%
+  summarise(
+    rssi = mean(rssi, na.rm = TRUE),
+    .groups = "drop"
+  )
+# ------
+
+min_weeks <- 25
+min_days  <- min_weeks * 7
+WSTART    <- 1  # segunda
+
+# 1) marca o DIA (date) em cada base
+tr <- sensors_train %>%
+  mutate(
+    rdtimestamp = as.POSIXct(rdtimestamp, tz = "GMT"),
+    rdday = as.Date(rdtimestamp)   # dia de coleta
+  )
+
+te <- sensors_test %>%
+  mutate(
+    rdtimestamp = as.POSIXct(rdtimestamp, tz = "GMT"),
+    rdday = as.Date(rdtimestamp)
+  )
+
+# 2) quantos DIAS tem no teste por nodeid
+test_days <- te %>%
+  distinct(nodeid, rdday) %>%
+  count(nodeid, name = "n_test_days")
+
+# 3) DIAS do treino que precisam ir pro teste (os mais recentes)
+days_to_move <- tr %>%
+  distinct(nodeid, rdday) %>%
+  left_join(test_days, by = "nodeid") %>%
+  mutate(
+    n_test_days = coalesce(n_test_days, 0L),
+    missing = pmax(0L, min_days - n_test_days)
+  ) %>%
+  filter(missing > 0) %>%
+  group_by(nodeid) %>%
+  arrange(desc(rdday), .by_group = TRUE) %>%
+  mutate(rk = row_number()) %>%
+  filter(rk <= missing) %>%
+  ungroup() %>%
+  select(nodeid, rdday)
+
+# 4) move do treino -> teste (por DIA)
+moved <- tr %>% semi_join(days_to_move, by = c("nodeid", "rdday"))
+train_fixed <- tr %>% anti_join(days_to_move, by = c("nodeid", "rdday"))
+test_fixed  <- bind_rows(te, moved)
+
+# (opcional) relatório em DIAS
+report_days <- test_fixed %>%
+  distinct(nodeid, rdday) %>%
+  count(nodeid, name = "n_test_days_final") %>%
+  arrange(n_test_days_final)
+
+report_days
+
+
+## Traning Weekly data Set-- 
+env_week_train <- env_train %>%
+  mutate(rdtimestamp = as.POSIXct(rdtimestamp, tz = "GMT")) %>%
+  group_by(rdtimestamp = floor_date(rdtimestamp, "week", week_start = WSTART)) %>%
+  summarise(
+    airtemp = mean(airtemp, na.rm = TRUE),
+    airhum  = mean(airhum,  na.rm = TRUE),
+    season  = dplyr::first(season),
+    dum_Summer = as.integer(dplyr::first(season) == "Summer"),
+    dum_Autumn = as.integer(dplyr::first(season) == "Autumn"),
+    dum_Winter = as.integer(dplyr::first(season) == "Winter"),
+    .groups = "drop"
+  )
+
+
+sensors_week_train <- train_fixed %>%
+  mutate(rdtimestamp = as.POSIXct(rdtimestamp, tz = "GMT")) %>%
+  group_by(
+    nodeid,
+    rdtimestamp = floor_date(rdtimestamp, "week", week_start = WSTART)
+  ) %>%
+  summarise(
+    rssi = mean(rssi, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+
+
+sens_day_test <- test_fixed %>%   # pode ser train+test juntos
+  mutate(rdtimestamp = as.Date(as.POSIXct(rdtimestamp, tz="GMT"))) %>%
+  group_by(nodeid, rdtimestamp) %>%
+  summarise(rssi = mean(rssi, na.rm=TRUE), .groups="drop")
+
+# covariáveis 15min -> dia
+env_day <- env_test %>%
+  mutate(rdtimestamp = as.Date(as.POSIXct(rdtimestamp, tz="GMT"))) %>%
+  group_by(rdtimestamp) %>%
+  summarise(
+    soiltemp = mean(soiltemp, na.rm=TRUE),
+    soilhum  = mean(soilhum,  na.rm=TRUE),
+    airtemp  = mean(airtemp,  na.rm=TRUE),
+    airhum   = mean(airhum,   na.rm=TRUE),
+    season   = dplyr::first(season),
+    dum_Summer = as.integer(first(season) == "Summer"),
+    dum_Autumn = as.integer(first(season) == "Autumn"),
+    dum_Winter = as.integer(first(season) == "Winter"),
+    .groups="drop"
+  )
+
+# join diário (estável)
+new_df_day <- sens_day_test %>% left_join(env_day, by="rdtimestamp")
+
+new_df_week <- new_df_day %>%
+  mutate(rdtimestamp = floor_date(rdtimestamp, "week", week_start = WSTART)) %>%
+  group_by(nodeid, rdtimestamp) %>%
+  summarise(
+    # resposta
+    rssi = mean(rssi, na.rm = TRUE),
+    
+    # covariáveis (ajuste nomes conforme seu df)
+    airtemp  = mean(airtemp,  na.rm = TRUE),
+    airhum   = mean(airhum,   na.rm = TRUE),
+    soiltemp = mean(soiltemp, na.rm = TRUE),
+    soilhum  = mean(soilhum,  na.rm = TRUE),
+    
+    # categórica
+    season = dplyr::first(season),
+    dum_Summer = as.integer(first(season) == "Summer"),
+    dum_Autumn = as.integer(first(season) == "Autumn"),
+    dum_Winter = as.integer(first(season) == "Winter"),
+    
+    .groups = "drop"
+  )

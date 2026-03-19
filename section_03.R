@@ -22,7 +22,7 @@ rownames(Xsig) <- sensors
 colnames(Xsig) <- cov_names
 
 
-plots_dir <- "plots_24hour_test"
+plots_dir <- "plots_hour_test"
 
 dir.create(plots_dir, showWarnings = FALSE, recursive = TRUE)
 
@@ -114,118 +114,118 @@ for (i in seq_along(sensors)) {
   
 # one-step-ahead---- 
   
-  # new1 <- Arima(RSSI_test, xreg = Xth_t, model = a01)
-  # new2 <- Arima(RSSI_test, xreg = Xtemp_t, model = a02)
-  # new3 <- Arima(RSSI_test, xreg = Xhum_t, model = a03)
-  # new4 <- Arima(RSSI_test, model = a04)
-  # new5 <- Arima(RSSI_test, xreg = Xdum_t, model = a05)
-  
-  
-  # MAPE[i, ] <- c(
-  #   forecast::accuracy(new1$fitted, RSSI_test)[5],
-  #   forecast::accuracy(new2$fitted, RSSI_test)[5],
-  #   forecast::accuracy(new3$fitted, RSSI_test)[5],
-  #   forecast::accuracy(new4$fitted, RSSI_test)[5],
-  #   forecast::accuracy(new5$fitted, RSSI_test)[5]
-  # )
-  # 
-  # RMSE[i, ] <- c(
-  #   forecast::accuracy(new1$fitted, RSSI_test)[2],
-  #   forecast::accuracy(new2$fitted, RSSI_test)[2],
-  #   forecast::accuracy(new3$fitted, RSSI_test)[2],
-  #   forecast::accuracy(new4$fitted, RSSI_test)[2],
-  #   forecast::accuracy(new5$fitted, RSSI_test)[2]
-  # )
-  # 
-  # MAE[i, ] <- c(
-  #   forecast::accuracy(new1$fitted, RSSI_test)[3],
-  #   forecast::accuracy(new2$fitted, RSSI_test)[3],
-  #   forecast::accuracy(new3$fitted, RSSI_test)[3],
-  #   forecast::accuracy(new4$fitted, RSSI_test)[3],
-  #   forecast::accuracy(new5$fitted, RSSI_test)[3]
-  # )
-  # 
-  # COR[i, ] <- c(
-  #   cor(RSSI_test, new1$fitted, use = "complete.obs"),
-  #   cor(RSSI_test, new2$fitted, use = "complete.obs"),
-  #   cor(RSSI_test, new3$fitted, use = "complete.obs"),
-  #   cor(RSSI_test, new4$fitted, use = "complete.obs"),
-  #   cor(RSSI_test, new5$fitted, use = "complete.obs")
-  # )
-  # 
-  # RSSI_test_xts <- xts::xts(RSSI_test, order.by = df_te$rdtimestamp)
-  # new1fit <- xts::xts(new1$fitted, order.by = df_te$rdtimestamp)
-  # new2fit <- xts::xts(new2$fitted, order.by = df_te$rdtimestamp)
-  # new3fit <- xts::xts(new3$fitted, order.by = df_te$rdtimestamp)
-  # new4fit <- xts::xts(new4$fitted, order.by = df_te$rdtimestamp)
-  # new5fit <- xts::xts(new5$fitted, order.by = df_te$rdtimestamp)
-  
-  
-# Aqui são os ajustes para  previsão ----
-  
-  h <- 24
-  h_i <- min(h, length(RSSI_test))
-  
-  Xth_f   <- Xth_t[seq_len(h_i), , drop = FALSE]
-  Xtemp_f <- Xtemp_t[seq_len(h_i), , drop = FALSE]
-  Xhum_f  <- Xhum_t[seq_len(h_i), , drop = FALSE]
-  Xdum_f  <- Xdum_t[seq_len(h_i), , drop = FALSE]
-  
-  
-  fc1 <- forecast::forecast(a01, h = h_i, xreg = Xth_f)
-  fc2 <- forecast::forecast(a02, h = h_i, xreg = Xtemp_f)
-  fc3 <- forecast::forecast(a03, h = h_i, xreg = Xhum_f)
-  fc4 <- forecast::forecast(a04, h = h_i)
-  fc5 <- forecast::forecast(a05, h = h_i, xreg = Xdum_f)
-  
-  pred1 <- as.numeric(fc1$mean)
-  pred2 <- as.numeric(fc2$mean)
-  pred3 <- as.numeric(fc3$mean)
-  pred4 <- as.numeric(fc4$mean)
-  pred5 <- as.numeric(fc5$mean)
-  
-  y_true_h <- RSSI_test[seq_len(h_i)]
+  new1 <- Arima(RSSI_test, xreg = Xth_t, model = a01)
+  new2 <- Arima(RSSI_test, xreg = Xtemp_t, model = a02)
+  new3 <- Arima(RSSI_test, xreg = Xhum_t, model = a03)
+  new4 <- Arima(RSSI_test, model = a04)
+  new5 <- Arima(RSSI_test, xreg = Xdum_t, model = a05)
   
   
   MAPE[i, ] <- c(
-    forecast::accuracy(pred1, y_true_h)[5],
-    forecast::accuracy(pred2, y_true_h)[5],
-    forecast::accuracy(pred3, y_true_h)[5],
-    forecast::accuracy(pred4, y_true_h)[5],
-    forecast::accuracy(pred5, y_true_h)[5]
+    forecast::accuracy(new1$fitted, RSSI_test)[5],
+    forecast::accuracy(new2$fitted, RSSI_test)[5],
+    forecast::accuracy(new3$fitted, RSSI_test)[5],
+    forecast::accuracy(new4$fitted, RSSI_test)[5],
+    forecast::accuracy(new5$fitted, RSSI_test)[5]
   )
-  
+
   RMSE[i, ] <- c(
-    forecast::accuracy(pred1, y_true_h)[2],
-    forecast::accuracy(pred2, y_true_h)[2],
-    forecast::accuracy(pred3, y_true_h)[2],
-    forecast::accuracy(pred4, y_true_h)[2],
-    forecast::accuracy(pred5, y_true_h)[2]
+    forecast::accuracy(new1$fitted, RSSI_test)[2],
+    forecast::accuracy(new2$fitted, RSSI_test)[2],
+    forecast::accuracy(new3$fitted, RSSI_test)[2],
+    forecast::accuracy(new4$fitted, RSSI_test)[2],
+    forecast::accuracy(new5$fitted, RSSI_test)[2]
   )
-  
+
   MAE[i, ] <- c(
-    forecast::accuracy(pred1, y_true_h)[3],
-    forecast::accuracy(pred2, y_true_h)[3],
-    forecast::accuracy(pred3, y_true_h)[3],
-    forecast::accuracy(pred4, y_true_h)[3],
-    forecast::accuracy(pred5, y_true_h)[3]
+    forecast::accuracy(new1$fitted, RSSI_test)[3],
+    forecast::accuracy(new2$fitted, RSSI_test)[3],
+    forecast::accuracy(new3$fitted, RSSI_test)[3],
+    forecast::accuracy(new4$fitted, RSSI_test)[3],
+    forecast::accuracy(new5$fitted, RSSI_test)[3]
   )
-  
+
   COR[i, ] <- c(
-    cor(y_true_h, pred1, use = "complete.obs"),
-    cor(y_true_h, pred2, use = "complete.obs"),
-    cor(y_true_h, pred3, use = "complete.obs"),
-    cor(y_true_h, pred4, use = "complete.obs"),
-    cor(y_true_h, pred5, use = "complete.obs")
+    cor(RSSI_test, new1$fitted, use = "complete.obs"),
+    cor(RSSI_test, new2$fitted, use = "complete.obs"),
+    cor(RSSI_test, new3$fitted, use = "complete.obs"),
+    cor(RSSI_test, new4$fitted, use = "complete.obs"),
+    cor(RSSI_test, new5$fitted, use = "complete.obs")
   )
+
+  RSSI_test_xts <- xts::xts(RSSI_test, order.by = df_te$rdtimestamp)
+  new1fit <- xts::xts(new1$fitted, order.by = df_te$rdtimestamp)
+  new2fit <- xts::xts(new2$fitted, order.by = df_te$rdtimestamp)
+  new3fit <- xts::xts(new3$fitted, order.by = df_te$rdtimestamp)
+  new4fit <- xts::xts(new4$fitted, order.by = df_te$rdtimestamp)
+  new5fit <- xts::xts(new5$fitted, order.by = df_te$rdtimestamp)
+
   
-  # (mantive os xts, mas agora usando as previsões pred*)
-  RSSI_test_xts <- xts::xts(y_true_h, order.by = df_te$rdtimestamp[seq_len(h_i)])
-  new1fit <- xts::xts(pred1, order.by = df_te$rdtimestamp[seq_len(h_i)])
-  new2fit <- xts::xts(pred2, order.by = df_te$rdtimestamp[seq_len(h_i)])
-  new3fit <- xts::xts(pred3, order.by = df_te$rdtimestamp[seq_len(h_i)])
-  new4fit <- xts::xts(pred4, order.by = df_te$rdtimestamp[seq_len(h_i)])
-  new5fit <- xts::xts(pred5, order.by = df_te$rdtimestamp[seq_len(h_i)])
+# Aqui são os ajustes para  previsão ----
+  
+  # h <- 24
+  # h_i <- min(h, length(RSSI_test))
+  # 
+  # Xth_f   <- Xth_t[seq_len(h_i), , drop = FALSE]
+  # Xtemp_f <- Xtemp_t[seq_len(h_i), , drop = FALSE]
+  # Xhum_f  <- Xhum_t[seq_len(h_i), , drop = FALSE]
+  # Xdum_f  <- Xdum_t[seq_len(h_i), , drop = FALSE]
+  # 
+  # 
+  # fc1 <- forecast::forecast(a01, h = h_i, xreg = Xth_f)
+  # fc2 <- forecast::forecast(a02, h = h_i, xreg = Xtemp_f)
+  # fc3 <- forecast::forecast(a03, h = h_i, xreg = Xhum_f)
+  # fc4 <- forecast::forecast(a04, h = h_i)
+  # fc5 <- forecast::forecast(a05, h = h_i, xreg = Xdum_f)
+  # 
+  # pred1 <- as.numeric(fc1$mean)
+  # pred2 <- as.numeric(fc2$mean)
+  # pred3 <- as.numeric(fc3$mean)
+  # pred4 <- as.numeric(fc4$mean)
+  # pred5 <- as.numeric(fc5$mean)
+  # 
+  # y_true_h <- RSSI_test[seq_len(h_i)]
+  # 
+  # 
+  # MAPE[i, ] <- c(
+  #   forecast::accuracy(pred1, y_true_h)[5],
+  #   forecast::accuracy(pred2, y_true_h)[5],
+  #   forecast::accuracy(pred3, y_true_h)[5],
+  #   forecast::accuracy(pred4, y_true_h)[5],
+  #   forecast::accuracy(pred5, y_true_h)[5]
+  # )
+  # 
+  # RMSE[i, ] <- c(
+  #   forecast::accuracy(pred1, y_true_h)[2],
+  #   forecast::accuracy(pred2, y_true_h)[2],
+  #   forecast::accuracy(pred3, y_true_h)[2],
+  #   forecast::accuracy(pred4, y_true_h)[2],
+  #   forecast::accuracy(pred5, y_true_h)[2]
+  # )
+  # 
+  # MAE[i, ] <- c(
+  #   forecast::accuracy(pred1, y_true_h)[3],
+  #   forecast::accuracy(pred2, y_true_h)[3],
+  #   forecast::accuracy(pred3, y_true_h)[3],
+  #   forecast::accuracy(pred4, y_true_h)[3],
+  #   forecast::accuracy(pred5, y_true_h)[3]
+  # )
+  # 
+  # COR[i, ] <- c(
+  #   cor(y_true_h, pred1, use = "complete.obs"),
+  #   cor(y_true_h, pred2, use = "complete.obs"),
+  #   cor(y_true_h, pred3, use = "complete.obs"),
+  #   cor(y_true_h, pred4, use = "complete.obs"),
+  #   cor(y_true_h, pred5, use = "complete.obs")
+  # )
+  # 
+  # # (mantive os xts, mas agora usando as previsões pred*)
+  # RSSI_test_xts <- xts::xts(y_true_h, order.by = df_te$rdtimestamp[seq_len(h_i)])
+  # new1fit <- xts::xts(pred1, order.by = df_te$rdtimestamp[seq_len(h_i)])
+  # new2fit <- xts::xts(pred2, order.by = df_te$rdtimestamp[seq_len(h_i)])
+  # new3fit <- xts::xts(pred3, order.by = df_te$rdtimestamp[seq_len(h_i)])
+  # new4fit <- xts::xts(pred4, order.by = df_te$rdtimestamp[seq_len(h_i)])
+  # new5fit <- xts::xts(pred5, order.by = df_te$rdtimestamp[seq_len(h_i)])
   
   
   
@@ -233,26 +233,26 @@ for (i in seq_along(sensors)) {
   # =========================
   # PLOT (1 por sensor): Observado + todos os modelos (TESTE) - one-step-ahed
   # =========================
-  # plot_df <- data.frame(
-  #   rdtimestamp = as.POSIXct(df_te$rdtimestamp),
-  #   Observed    = as.numeric(RSSI_test),
-  #   `ARIMA-TH`   = as.numeric(new1$fitted),
-  #   `ARIMA-Temp` = as.numeric(new2$fitted),
-  #   `ARIMA-H`    = as.numeric(new3$fitted),
-  #   `ARIMA`      = as.numeric(new4$fitted),
-  #   `ARIMA-DUM`  = as.numeric(new5$fitted)
-  # )
-  # 
-  
   plot_df <- data.frame(
-    rdtimestamp = as.POSIXct(df_te$rdtimestamp[seq_len(h_i)]),
-    Observed    = as.numeric(y_true_h),
-    `ARIMA-TH`   = as.numeric(pred1),
-    `ARIMA-Temp` = as.numeric(pred2),
-    `ARIMA-H`    = as.numeric(pred3),
-    `ARIMA`      = as.numeric(pred4),
-    `ARIMA-DUM`  = as.numeric(pred5)
+    rdtimestamp = as.POSIXct(df_te$rdtimestamp),
+    Observed    = as.numeric(RSSI_test),
+    `ARIMA-TH`   = as.numeric(new1$fitted),
+    `ARIMA-Temp` = as.numeric(new2$fitted),
+    `ARIMA-H`    = as.numeric(new3$fitted),
+    `ARIMA`      = as.numeric(new4$fitted),
+    `ARIMA-DUM`  = as.numeric(new5$fitted)
   )
+
+
+  # plot_df <- data.frame(
+  #   rdtimestamp = as.POSIXct(df_te$rdtimestamp[seq_len(h_i)]),
+  #   Observed    = as.numeric(y_true_h),
+  #   `ARIMA-TH`   = as.numeric(pred1),
+  #   `ARIMA-Temp` = as.numeric(pred2),
+  #   `ARIMA-H`    = as.numeric(pred3),
+  #   `ARIMA`      = as.numeric(pred4),
+  #   `ARIMA-DUM`  = as.numeric(pred5)
+  # )
   
   plot_long <- plot_df %>%
     pivot_longer(
@@ -322,18 +322,18 @@ rownames(result) <- paste(
 print(result, digits = 5)
 
 
-# count<-apply(cbind(apply(result01[1:3,], 1, rank)==1,
-#                    COR=rank(result01[4,])==4),1,sum)
-# for(i in 2:8){
-#   r<-get(paste0("result0",i))
-#   r<-apply(cbind(apply(r[1:3,], 1, rank)==1,
-#                  COR=rank(r[4,])==4),1,sum)
-#   count<-abind::abind(count,r,along = 2)
-# }
-# count<-abind::abind(count,apply(count,1,sum),along = 2)
-# colnames(count)<-c(rownames(MAPE),"Overall")
-# 
-# print(t(count)) 
+count<-apply(cbind(apply(result01[1:3,], 1, rank)==1,
+                   COR=rank(result01[4,])==4),1,sum)
+for(i in 2:8){
+  r<-get(paste0("result0",i))
+  r<-apply(cbind(apply(r[1:3,], 1, rank)==1,
+                 COR=rank(r[4,])==4),1,sum)
+  count<-abind::abind(count,r,along = 2)
+}
+count<-abind::abind(count,apply(count,1,sum),along = 2)
+colnames(count)<-c(rownames(MAPE),"Overall")
+
+print(t(count))
 # 
 # 
 # 
