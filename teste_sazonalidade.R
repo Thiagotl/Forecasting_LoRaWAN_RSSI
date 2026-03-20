@@ -17,8 +17,8 @@ sensors_hour_train <- sensors_train |>
 
 new_sensors <- sensors_hour_train |> 
   dplyr::filter(
-    rdtimestamp >= as.POSIXct("2024-11-10 00:00:00"),
-    rdtimestamp <= as.POSIXct("2025-03-05 23:59:59")
+    rdtimestamp >= as.POSIXct("2024-11-10 23:20:00"),
+    rdtimestamp <= as.POSIXct("2025-03-05 05:00:00")
   )
 
 
