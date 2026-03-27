@@ -233,6 +233,42 @@ r6 <- psych::corr.test(tinovi06_RSSI_train[, c(3:5)])
 r7 <- psych::corr.test(milesight01_RSSI_train[, c(3:5)])
 r8 <- psych::corr.test(milesight02_RSSI_train[, c(3:5)])
 
+colSums(is.na(milesight02_RSSI_train))
+
+
+rssi_full_list <- purrr::map2(
+  rssi_train_list,
+  rssi_test_list,
+  ~ dplyr::bind_rows(.x, .y)
+)
+
+psych::corr.test(rssi_full_list$Milesight02[, c(3:5)])
+
+
+
+dfs <- list(
+  tinovi01_RSSI_train %>% select(rdtimestamp, Tinovi01 = rssi),
+  tinovi02_RSSI_train %>% select(rdtimestamp, Tinovi02 = rssi),
+  tinovi03_RSSI_train %>% select(rdtimestamp, Tinovi03 = rssi),
+  tinovi04_RSSI_train %>% select(rdtimestamp, Tinovi04 = rssi),
+  tinovi05_RSSI_train %>% select(rdtimestamp, Tinovi05 = rssi),
+  tinovi06_RSSI_train %>% select(rdtimestamp, Tinovi06 = rssi),
+  milesight01_RSSI_train %>% select(rdtimestamp, Milesight01 = rssi),
+  milesight02_RSSI_train %>% select(rdtimestamp, Milesight02 = rssi)
+)
+  
+rssi_all <- reduce(dfs, full_join, by = "rdtimestamp") %>%
+  arrange(rdtimestamp)
+
+rssi_all
+  
+cor_matrix <- rssi_all %>%
+  select(-rdtimestamp) %>%
+  psych::corr.test(use = "pairwise", method = "pearson")
+
+cor_matrix$p
+
+
 
 # verificar_correlacoes <- function(df, nome_df) {
 #   resultado <- psych::corr.test(df[, c(3:5)])

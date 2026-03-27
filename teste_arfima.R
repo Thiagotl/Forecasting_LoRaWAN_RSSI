@@ -1,4 +1,3 @@
-
 library(rugarch)
 
 
@@ -8,10 +7,7 @@ rssi_full_list <- purrr::map2(
   ~ dplyr::bind_rows(.x, .y)
 )
 
-
 results_lsm <- purrr::map(rssi_full_list, ~ tseries::kpss.test(.x[["rssi"]]))
-
-
 
 df_results_lsm <- tibble::tibble(
   sensors = names(rssi_full_list),
@@ -22,12 +18,19 @@ df_results_lsm <- tibble::tibble(
     result  = ifelse(p_value < 0.05, "No Stationary", "Stationary")
   )
 
-print(tseries::adf.test(rssit))    # ADF: H0 = raiz unitária
-print(tseries::kpss.test(rssit))   # KPSS: H0 = estacionária
+print(tseries::adf.test(rssi_full_list$Tinovi04$rssi))    # ADF: H0 = raiz unitária
+print(tseries::kpss.test(rssi_full_list$Tinovi04$rssi))   # KPSS: H0 = estacionária
 
 
 purrr::map(rssi_full_list, ~ Acf(.x[["rssi"]]))
 
+tseries::adf.test(rssi_full_list$Tinovi04$rssi, k = 10)
+
+tseries::kpss.test(rssi_full_list$Tinovi04$rssi, null = "Trend")
+
+plot(rssi_full_list$Tinovi04$rssi, type = "l")
+
+tseries::adf.test(diff(rssi_full_list$Tinovi04$rssi))
 
 ## ARFIMA MODEL ###----
 
@@ -40,6 +43,7 @@ rssitest   <- rssi_test_list$Tinovi04$rssi
 temp_test  <- rssi_test_list$Tinovi04$airtemp
 hum_test   <- rssi_test_list$Tinovi04$airhum
 Xreg_test  <- as.matrix(cbind(temp_test, hum_test))
+
 
 h <- length(rssitest)
 
