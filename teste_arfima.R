@@ -7,7 +7,7 @@ rssi_full_list <- purrr::map2(
   ~ dplyr::bind_rows(.x, .y)
 )
 
-results_lsm <- purrr::map(rssi_full_list, ~ tseries::kpss.test(.x[["rssi"]]))
+results_lsm<- purrr::map(rssi_full_list, ~ tseries::kpss.test(.x[["rssi"]]))
 
 df_results_lsm <- tibble::tibble(
   sensors = names(rssi_full_list),
@@ -23,6 +23,55 @@ print(tseries::kpss.test(rssi_full_list$Tinovi04$rssi))   # KPSS: H0 = estacionÃ
 
 
 purrr::map(rssi_full_list, ~ Acf(.x[["rssi"]]))
+
+
+names(rssi_full_list) <- c(
+  "Tinovi01", "Tinovi02", "Tinovi03", "Tinovi04",
+  "Tinovi05", "Tinovi06", "Milesight01", "Milesight02"
+)
+
+acf_plots <- imap(
+  rssi_full_list,
+  function(x, sensor_name) {
+    forecast::ggAcf(x[["rssi"]], lag.max = 40) +
+      ggtitle(sensor_name) +
+      labs(x = "Lag", y = "ACF") +
+      theme_minimal(base_size = 12) +
+      theme(
+        plot.title = element_text(hjust = 0.5, face = "bold")
+      )
+  }
+)
+
+dir.create("acf_all_sensors", showWarnings = FALSE)
+
+iwalk(
+  acf_plots,
+  ~ ggsave(
+    filename = file.path("acf_all_sensors", paste0(.y, "_acf.png")),
+    plot = .x,
+    width = 7,
+    height = 5,
+    dpi = 300
+  )
+)
+
+grafico_unico <- patchwork::wrap_plots(acf_plots, ncol = 2) +
+  patchwork::plot_annotation(title = "ACF Sensors")
+
+
+# Visualizar
+grafico_unico
+
+# Salvar figura Ãºnica
+ggsave(
+  filename = "acf_all_sensors.pdf",
+  plot = grafico_unico,
+  width = 14,
+  height = 18,
+  dpi = 300
+)
+
 
 tseries::adf.test(rssi_full_list$Tinovi04$rssi, k = 10)
 
@@ -85,7 +134,7 @@ best_ma <- arfima_model$fit@model$modelinc["ma"]
 
 spec_arfima <- arfimaspec(
   mean.model = list(
-    armaOrder           = c(best_ar, best_ma),
+    armaOrder           = c(3, 3),
     include.mean        = TRUE,
     arfima              = TRUE,
     external.regressors = X_all          
@@ -119,10 +168,10 @@ spec_arfima_garch <- ugarchspec(
     garchOrder = c(1, 1)
   ),
   mean.model = list(
-    armaOrder           = c(best_ar, best_ma),
+    armaOrder           = c(3, 3),
     include.mean        = TRUE,
-    arfima              = TRUE,
-    external.regressors = X_all         
+    arfima              = TRUE
+    #external.regressors = X_all         
   ),
   distribution.model = "std"
 )
@@ -198,7 +247,7 @@ print(metrics_table, row.names = FALSE)
 
 
 
-ggplot(df_long, aes(x = time, y = value, color = series, linetype = series)) +
+p <- ggplot(df_long, aes(x = time, y = value, color = series, linetype = series)) +
   geom_line(linewidth = 0.9) +
   scale_color_manual(
     values = c(
@@ -240,6 +289,14 @@ ggplot(df_long, aes(x = time, y = value, color = series, linetype = series)) +
     axis.title = element_text(face = "bold")
   )
 
+
+ggsave(
+  filename = "arfima-garch.pdf",
+  plot = p,
+  width = 18,
+  height = 13,
+  dpi = 300
+)
 
 ## Residual analysis ----
 
