@@ -127,109 +127,81 @@ rssi_test_list  <- map(splits, "test")
 ## Fitting ARIMAX ##
 ####################
 
-
-
 order_arima <- matrix(NA, 8, 3)
 
 MAE  <- MAPE <- RMSE <- COR <- matrix(NA, 8, 4)
 colnames(MAE) <- colnames(MAPE) <- colnames(RMSE) <- colnames(COR) <-
-  c("ARIMA-COV", "ARIMA-COV*", "ARIMA-COV**", "ARIMA")
-
+  c("ARIMAX(T+RH)", "ARIMAX(T)", "ARIMAX(RH)", "ARIMA")
 rownames(MAE) <- rownames(MAPE) <- rownames(RMSE) <- rownames(COR) <-
   rownames(order_arima) <- names(rssi_list)
 
 Xsig   <- matrix("",    8, 2)
-sinal  <- matrix(FALSE, 8, 2)
+sinal  <- matrix("",    8, 2)
 values <- matrix(NA,    8, 2)
-
 rownames(Xsig) <- rownames(sinal) <- rownames(values) <- names(rssi_list)
 colnames(Xsig) <- colnames(sinal) <- colnames(values) <- c("T", "RH")
 
-coeffs <- matrix(NA, 8, 4)
-
-for(i in 1:8){
+for (i in 1:8) {
   
   df_train <- rssi_train_list[[i]]
   df_test  <- rssi_test_list[[i]]
   
-  RSSI <- df_train$rssi
+  RSSI      <- df_train$rssi
   RSSI_test <- df_test$rssi
   
-  X <- cbind(df_train$airtemp, df_train$airhum)
-  Xtest <- cbind(df_test$airtemp, df_test$airhum)
+  # Covariáveis: T+RH, só T, só RH
+  X_both  <- cbind(df_train$airtemp, df_train$airhum)
+  X_T     <- df_train$airtemp
+  X_RH    <- df_train$airhum
   
-  Xchoosed  <- X[, 1, drop = FALSE]      
-  Xchoosedt <- Xtest[, 1, drop = FALSE]
+  Xtest_both <- cbind(df_test$airtemp, df_test$airhum)
+  Xtest_T    <- df_test$airtemp
+  Xtest_RH   <- df_test$airhum
   
-  # fitting the algorithms
-  a01 <- auto.arima(RSSI, xreg = X, allowdrift = FALSE)
+  # ── 1. auto.arima com T+RH para definir a ordem ──────────────────────────
+  a_auto <- auto.arima(RSSI, xreg = X_both, allowdrift = FALSE)
+  ord    <- arimaorder(a_auto)
+  order_arima[i, ] <- ord
   
-  idx_xreg <- (length(a01$coef) - ncol(X) + 1):length(a01$coef)
+  # Significância dos coeficientes de xreg
+  idx_xreg <- (length(a_auto$coef) - 1):length(a_auto$coef)   # últimos 2
+  tcoef    <- coeftest(a_auto)[idx_xreg, 4] < 0.05
+  Xsig[i, ]  <- ifelse(tcoef, c("T", "RH"), "")
+  sinal[i, ] <- ifelse(tcoef,
+                       ifelse(coef(a_auto)[idx_xreg] < 0, "negative", "positive"),
+                       "")
+  values[i, ] <- coef(a_auto)[idx_xreg]
   
-  tcoef <- coeftest(a01)[idx_xreg, 4] < 0.05
+  # ── 2. Ajuste dos 4 modelos com a mesma ordem ─────────────────────────────
+  # Modelo 1 – ARIMAX(T+RH)
+  m1 <- Arima(RSSI, order = ord, xreg = X_both)
   
-  order_arima[i, ] <- arimaorder(a01)
+  # Modelo 2 – ARIMAX(T)
+  m2 <- Arima(RSSI, order = ord, xreg = X_T)
   
-  #Xsig[i, ]   <- c(c("T", "RH")[tcoef], rep("", 2 - sum(tcoef)))
-  Xsig[i, ] <- ifelse(tcoef, c("T", "RH"), "")
-  #sinal[i, ]  <- (coef(a01) < 0)[idx_xreg]
+  # Modelo 3 – ARIMAX(RH)
+  m3 <- Arima(RSSI, order = ord, xreg = X_RH)
   
-  sinal[i, ] <- ifelse(
-    tcoef,
-    ifelse(coef(a01)[idx_xreg] < 0, "negative", "positive"),
-    ""
-  )
+  # Modelo 4 – ARIMA puro
+  m4 <- Arima(RSSI, order = ord)
   
-  values[i, ] <- coef(a01)[idx_xreg]
+  # ── 3. One-step-ahead no conjunto de teste ────────────────────────────────
+  new1 <- Arima(RSSI_test, xreg = Xtest_both, model = m1)
+  new2 <- Arima(RSSI_test, xreg = Xtest_T,    model = m2)
+  new3 <- Arima(RSSI_test, xreg = Xtest_RH,   model = m3)
+  new4 <- Arima(RSSI_test,                     model = m4)
   
-  # modelo com covariáveis significativas
-  if(sum(tcoef) > 0){
-    Xnew  <- X[, tcoef, drop = FALSE]
-    Xnewt <- Xtest[, tcoef, drop = FALSE]
-    a02   <- Arima(RSSI, order = arimaorder(a01), xreg = Xnew)
-    new2  <- Arima(RSSI_test, xreg = Xnewt, model = a02)
-  } else {
-    a02  <- Arima(RSSI, order = arimaorder(a01))
-    new2 <- Arima(RSSI_test, model = a02)
-  }
+  # ── 4. Métricas ───────────────────────────────────────────────────────────
+  acc <- function(new) forecast::accuracy(new$fitted, RSSI_test)[1, ]
   
-  # modelo sem covariáveis
-  a03 <- Arima(RSSI, order = arimaorder(a01))
-  
-  # modelo com 1 covariável (airtemp)
-  a04 <- Arima(RSSI, order = arimaorder(a01), xreg = Xchoosed)
-  
-  # forecasting / one-step-ahead
-  new1 <- Arima(RSSI_test, xreg = Xtest, model = a01)
-  new3 <- Arima(RSSI_test, model = a03)
-  new4 <- Arima(RSSI_test, xreg = Xchoosedt, model = a04)
-  
-  MAPE[i, ] <- c(
-    forecast::accuracy(new1$fitted, RSSI_test)[1, "MAPE"],
-    forecast::accuracy(new2$fitted, RSSI_test)[1, "MAPE"],
-    forecast::accuracy(new4$fitted, RSSI_test)[1, "MAPE"],
-    forecast::accuracy(new3$fitted, RSSI_test)[1, "MAPE"]
-  )
-  
-  RMSE[i, ] <- c(
-    forecast::accuracy(new1$fitted, RSSI_test)[1, "RMSE"],
-    forecast::accuracy(new2$fitted, RSSI_test)[1, "RMSE"],
-    forecast::accuracy(new4$fitted, RSSI_test)[1, "RMSE"],
-    forecast::accuracy(new3$fitted, RSSI_test)[1, "RMSE"]
-  )
-  
-  MAE[i, ] <- c(
-    forecast::accuracy(new1$fitted, RSSI_test)[1, "MAE"],
-    forecast::accuracy(new2$fitted, RSSI_test)[1, "MAE"],
-    forecast::accuracy(new4$fitted, RSSI_test)[1, "MAE"],
-    forecast::accuracy(new3$fitted, RSSI_test)[1, "MAE"]
-  )
-  
-  COR[i,]<-c(cor(RSSI_test,new1$fitted),
-             cor(RSSI_test,new2$fitted),
-             cor(RSSI_test,new4$fitted),
-             cor(RSSI_test,new3$fitted)
-  )
+  MAPE[i, ] <- c(acc(new1)["MAPE"], acc(new2)["MAPE"],
+                 acc(new3)["MAPE"], acc(new4)["MAPE"])
+  RMSE[i, ] <- c(acc(new1)["RMSE"], acc(new2)["RMSE"],
+                 acc(new3)["RMSE"], acc(new4)["RMSE"])
+  MAE[i, ]  <- c(acc(new1)["MAE"],  acc(new2)["MAE"],
+                 acc(new3)["MAE"],  acc(new4)["MAE"])
+  COR[i, ]  <- c(cor(RSSI_test, new1$fitted), cor(RSSI_test, new2$fitted),
+                 cor(RSSI_test, new3$fitted), cor(RSSI_test, new4$fitted))
   
   assign(
     paste0("result0", i),
@@ -242,10 +214,7 @@ for(i in 1:8){
   )
 }
 
-
-print(cbind(order_arima, Xsig))
-
-
+# ── Resumo ────────────────────────────────────────────────────────────────────
 colnames(sinal) <- c("AirTemp", "AirHum")
 print(cbind(order_arima, sinal))
 
@@ -287,11 +256,11 @@ for(i in 2:8){
 }
 
 colnames(result) <- c(
-  "ARIMA-COV", "ARIMA-COV*", "ARIMA-COV**", "ARIMA",
-  "Diff.% COV", "Diff.% COV*", "Diff.% COV**"
+  "ARIMA-(T+RH)", "ARIMA-T", "ARIMA-RH", "ARIMA",
+  "Diff.% (T+H)", "Diff.% T", "Diff.%"
 )
 
-print(result, digits = 6)  # TABLE V
+print(result, digits = 5)  # TABLE V
 
 result_df <- data.frame(
   
