@@ -83,14 +83,14 @@ tseries::adf.test(diff(rssi_full_list$Tinovi04$rssi))
 
 ## ARFIMA MODEL ###----
 
-rssit      <- rssi_train_list$Tinovi04$rssi
-temp       <- rssi_train_list$Tinovi04$airtemp
-hum        <- rssi_train_list$Tinovi04$airhum
+rssit      <- rssi_train_list$Tinovi01$rssi
+temp       <- rssi_train_list$Tinovi01$airtemp
+hum        <- rssi_train_list$Tinovi01$airhum
 Xreg       <- as.matrix(cbind(temp, hum))
 
-rssitest   <- rssi_test_list$Tinovi04$rssi
-temp_test  <- rssi_test_list$Tinovi04$airtemp
-hum_test   <- rssi_test_list$Tinovi04$airhum
+rssitest   <- rssi_test_list$Tinovi01$rssi
+temp_test  <- rssi_test_list$Tinovi01$airtemp
+hum_test   <- rssi_test_list$Tinovi01$airhum
 Xreg_test  <- as.matrix(cbind(temp_test, hum_test))
 
 
@@ -134,14 +134,13 @@ best_ma <- arfima_model$fit@model$modelinc["ma"]
 
 spec_arfima <- arfimaspec(
   mean.model = list(
-    armaOrder           = c(3, 3),
+    armaOrder           = c(1, 2),
     include.mean        = TRUE,
     arfima              = TRUE,
     external.regressors = X_all          
   ),
   distribution.model = "norm"
 )
-
 
 fit_arfima <- arfimafit(
   spec = spec_arfima,
@@ -159,6 +158,10 @@ fc_arfima <- arfimaforecast(
 
 pred_arfima <- as.numeric(fitted(fc_arfima)[1, ])
 
+rugarch::infocriteria(fit_arfima)[1, ]
+
+forecast::checkresiduals(fit_arfima@fit$residuals, lag = 24)
+
 # =========================
 # 4) ARFIMA-GARCH final
 # =========================
@@ -170,8 +173,8 @@ spec_arfima_garch <- ugarchspec(
   mean.model = list(
     armaOrder           = c(3, 3),
     include.mean        = TRUE,
-    arfima              = TRUE
-    #external.regressors = X_all         
+    arfima              = TRUE,
+    external.regressors = X_all         
   ),
   distribution.model = "std"
 )
@@ -193,6 +196,8 @@ fc_arfima_garch <- ugarchforecast(
 pred_arfima_garch <- as.numeric(fitted(fc_arfima_garch)[1, ])
 
 time_test <- rssi_test_list$Tinovi04$rdtimestamp
+
+infocriteria(fit_arfima)[1]
 
 #time_test <- tail(rssi_test_list$Tinovi04$rdtimestamp, h)
 #obs_test  <- tail(rssitest, h)
