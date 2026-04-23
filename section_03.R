@@ -77,7 +77,7 @@ for (i in seq_along(sensors)) {
   Xdum   <- X[, 3:5, drop = FALSE]
   Xdum_t <- Xtest[, 3:5, drop = FALSE]
   
-  a01 <- auto.arima(RSSI, xreg = Xth, allowdrift = FALSE)
+  a01 <- auto.arima(RSSI, xreg = Xth, allowdrift = FALSE, seasonal = TRUE)
   ord <- arimaorder(a01)
   order_arima[i, ] <- ord
   
