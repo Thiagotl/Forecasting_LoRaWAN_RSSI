@@ -1,3 +1,4 @@
+## FITTING ARIMAX FOR DAYS ----
 
 ## lag models
 

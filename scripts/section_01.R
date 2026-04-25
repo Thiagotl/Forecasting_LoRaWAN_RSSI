@@ -1,14 +1,5 @@
 # DATA SET ADJUSTMENT AND DESCRIPTIVE ANALYSIS
 
-library(tidyverse)
-library(xts)
-library(lmtest)
-library(forecast)
-library(stats)
-library(knitr)
-library(kableExtra)
-library(lubridate)
-
 ### Training data set - Nodes and Environment ---- 
 
 # sensors

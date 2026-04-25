@@ -1,7 +1,6 @@
 
-library(forecast)
-library(tsibble)
-library(feasts)
+### PLOTS ----
+
 #library(ggseas)  devtools::install_github("ellisp/ggseas/pkg") # para visualização de séries temporais
 
 locale_original <- Sys.getlocale("LC_TIME")
