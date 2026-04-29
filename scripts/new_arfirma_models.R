@@ -5,23 +5,23 @@ library(doParallel)
 library(foreach)
 ## ARFIMA MODEL ###----
 
-rssit      <- rssi_train_list$Tinovi04$rssi#[1:500]
-temp       <- rssi_train_list$Tinovi04$airtemp#[1:500]
-hum        <- rssi_train_list$Tinovi04$airhum#[1:500]
-Xreg       <- as.matrix(temp, hum)#[1:500, ]
+rssit      <- rssi_train_list$Tinovi02$rssi#[1:500]
+temp       <- rssi_train_list$Tinovi02$airtemp#[1:500]
+hum        <- rssi_train_list$Tinovi02$airhum#[1:500]
+Xreg       <- as.matrix(cbind(rssi_train_list$Tinovi02[, c(4,5)]))#[1:500, ]
 
 
-rssitest   <- rssi_test_list$Tinovi04$rssi#[1:50]
-temp_test  <- rssi_test_list$Tinovi04$airtemp#[1:50]
-hum_test   <- rssi_test_list$Tinovi04$airhum#[1:50]
-Xreg_test  <- as.matrix(temp, hum)#[1:50, ]
+rssitest   <- rssi_test_list$Tinovi02$rssi#[1:50]
+temp_test  <- rssi_test_list$Tinovi02$airtemp#[1:50]
+hum_test   <- rssi_test_list$Tinovi02$airhum#[1:50]
+Xreg_test  <- as.matrix(cbind(rssi_test_list$Tinovi02[, c(4,5)]))#[1:50, ]
 
 y_all <- c(rssit, rssitest)
 X_all <- rbind(Xreg, Xreg_test)
 
 h <- length(rssitest)
 
-grid <- expand.grid(p = 0:1, q = 0:1)
+grid <- expand.grid(p = 0:15, q = 0:15)
 
 df_results <- data.frame(
   p = integer(),
@@ -55,8 +55,8 @@ for (k in seq_len(nrow(grid))) {
     mean.model = list(
       armaOrder           = c(p, q),
       include.mean        = TRUE,
-      arfima              = TRUE
-      #external.regressors = X_all         
+      arfima              = TRUE,
+      external.regressors = X_all         
     ),
     distribution.model = "std"
   )
@@ -142,13 +142,17 @@ coeftest(fit_arfima_garch@fit$matcoef)
 
 fit_arfima_garch@fit$matcoef[, 4] < 0.05
 
+
+
+# Ajuste dos modelos -----
+
 spec_arfima_garch <- ugarchspec(
   variance.model = list(
     model      = "fiGARCH",
     garchOrder = c(1, 1)
   ),
   mean.model = list(
-    armaOrder           = c(8, 9),
+    armaOrder           = c(13, 11),
     include.mean        = TRUE,
     arfima              = TRUE,
     external.regressors = X_all        
@@ -166,16 +170,60 @@ fit_arfima_garch <- tryCatch(ugarchfit(
 ),
 
 error = function(e){
-  message("Error - Order (", p, ",",q,"): ", e$message)
+  message("Error", e$message)
   
   return(NULL)
 }
 )
 
-modelo1 <- fit_arfima_garch
-modelo2 <- fit_arfima_garch
-modelo3 <- fit_arfima_garch
+# Forecast rolling one-step-ahead
+fc_arfima_garch <- ugarchforecast(
+  fit_arfima_garch,
+  n.ahead = 1,
+  n.roll  = h - 1,
+  external.forecasts = list(mregfor = Xreg_test)
+)
 
+
+
+dim(Xreg_test)        # deve ser h x p
+class(Xreg_test)      # deve ser "matrix"
+is.matrix(Xreg_test)  # deve ser TRUE
+
+# fitted() em rolling retorna matriz 1 x h
+pred_arfima_garch <- as.numeric(fitted(fc_arfima_garch))
+
+# Verificação rápida
+stopifnot(length(pred_arfima_garch) == length(rssitest))
+
+calc_metrics <- function(actual, predicted, model_name = "Modelo") {
+  erro  <- actual - predicted
+  mae   <- mean(abs(erro))
+  mape  <- mean(abs(erro / actual)) * 100
+  rmse  <- sqrt(mean(erro^2))
+  
+  cat("---------------------------------------------\n")
+  cat(" Accuracy metrics —", model_name, "\n")
+  cat("---------------------------------------------\n")
+  cat("  MAE  :", round(mae,  4), "\n")
+  cat("  MAPE :", round(mape, 4), "%\n")
+  cat("  RMSE :", round(rmse, 4), "\n\n")
+  
+  invisible(data.frame(
+    model = model_name,
+    MAE   = mae,
+    MAPE  = mape,
+    RMSE  = rmse
+  ))
+}
+metrics_arfima       <- calc_metrics(rssitest, pred_arfima,       "ARFIMA")
+metrics_arfima_garch <- calc_metrics(rssitest, pred_arfima_garch, "ARFIMA-GARCH")
+# Tabela comparativa
+metrics_table <- rbind(metrics_arfima, metrics_arfima_garch)
+cat("=============================================\n")
+cat(" Models \n")
+cat("=============================================\n")
+print(metrics_table, row.names = FALSE)
 
 
 # NEW NEW NEW NEW NEW NEW NEW -----
@@ -322,3 +370,25 @@ stopCluster(cl)
 df_results <- do.call(rbind, results_list)
 df_results <- df_results[order(df_results$AIC, na.last = TRUE), ]
 df_results
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
