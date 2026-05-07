@@ -5,16 +5,16 @@ library(doParallel)
 library(foreach)
 ## ARFIMA MODEL ###----
 
-rssit      <- rssi_train_list$Tinovi02$rssi#[1:500]
-temp       <- rssi_train_list$Tinovi02$airtemp#[1:500]
-hum        <- rssi_train_list$Tinovi02$airhum#[1:500]
-Xreg       <- as.matrix(cbind(rssi_train_list$Tinovi02[, c(4,5)]))#[1:500, ]
+rssit      <- rssi_train_list$Tinovi05$rssi#[1:500]
+temp       <- rssi_train_list$Tinovi05$airtemp#[1:500]
+hum        <- rssi_train_list$Tinovi05$airhum#[1:500]
+Xreg       <- as.matrix(cbind(rssi_train_list$Tinovi05[, c(4,5)]))#[1:500, ]
 
 
-rssitest   <- rssi_test_list$Tinovi02$rssi#[1:50]
-temp_test  <- rssi_test_list$Tinovi02$airtemp#[1:50]
-hum_test   <- rssi_test_list$Tinovi02$airhum#[1:50]
-Xreg_test  <- as.matrix(cbind(rssi_test_list$Tinovi02[, c(4,5)]))#[1:50, ]
+rssitest   <- rssi_test_list$Tinovi05$rssi#[1:50]
+temp_test  <- rssi_test_list$Tinovi05$airtemp#[1:50]
+hum_test   <- rssi_test_list$Tinovi05$airhum#[1:50]
+Xreg_test  <- as.matrix(cbind(rssi_test_list$Tinovi05[, c(4,5)]))#[1:50, ]
 
 y_all <- c(rssit, rssitest)
 X_all <- rbind(Xreg, Xreg_test)
@@ -152,7 +152,7 @@ spec_arfima_garch <- ugarchspec(
     garchOrder = c(1, 1)
   ),
   mean.model = list(
-    armaOrder           = c(13, 11),
+    armaOrder           = c(5, 5),
     include.mean        = TRUE,
     arfima              = TRUE,
     external.regressors = X_all        

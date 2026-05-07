@@ -3,7 +3,7 @@
 ### Training data set - Nodes and Environment ---- 
 
 # sensors
-sensors_train <- readr::read_delim("train_radio_values.csv", 
+sensors_train <- readr::read_delim("radio_values_1st_year.csv", 
                                    delim = ",", 
                                    escape_double = FALSE, 
                                    trim_ws = TRUE) |> 
@@ -19,7 +19,7 @@ sensors_hour_train <- sensors_train |>
 # environment
 
 env_train <- read_delim(
-  "train_env_values.csv",
+  "env_values_1st_year.csv",
   delim = ",",
   escape_double = FALSE,
   trim_ws = TRUE
@@ -58,7 +58,7 @@ env_hour_train <- env_train |>
 
 ### Testing data set - Nodes and Environment ---- 
 
-sensors_test <- readr::read_delim("test_radio_vals_after.csv",
+sensors_test <- readr::read_delim("radio_vals_2nd_year.csv",
                                   delim = ",", escape_double = FALSE, trim_ws = TRUE) |> 
   dplyr::mutate(rdtimestamp= as.POSIXct(rdtimestamp, tz = "GMT", origin="1970-01-01 00:00:00"))
 
@@ -71,7 +71,7 @@ sensors_hour_test <- sensors_test |>
 
 
 env_test <- read_delim(
-  "test_env_vals_after.csv",
+  "env_vals_2nd_year.csv",
   delim = ",", escape_double = FALSE, trim_ws = TRUE
 ) |> 
   mutate(
