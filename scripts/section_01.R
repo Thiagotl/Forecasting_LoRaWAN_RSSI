@@ -162,8 +162,8 @@ milesight02_RSSI_test <- sensors_hour_test |>
   dplyr::filter(nodeid == "milesight-02") 
 
 
-summary(milesight02_RSSI_test[3])
-dim(milesight02_RSSI_test)
+#summary(milesight02_RSSI_test[3])
+#dim(milesight02_RSSI_test)
 
 ## Joins training sets ----
 
@@ -718,4 +718,7 @@ rssi_test_list_week <- list(
   Milesight01 = milesight01_RSSI_test_w,
   Milesight02 = milesight02_RSSI_test_w
 )
+
+
+
 
